@@ -10,6 +10,7 @@ class Wordclock extends IPSModule
 
         // MQTT-Parent verbinden
         $this->ConnectParent('{C6D2AEB3-6E1F-4B2E-8E69-3A1A00246850}');
+        $this->SendDebug('Create', 'MQTT-Parent verbunden', 0);
 
         // Eigenschaften
         $this->RegisterPropertyBoolean('Active', true);
@@ -23,8 +24,12 @@ class Wordclock extends IPSModule
     {
         parent::ApplyChanges();
 
+        $active = $this->ReadPropertyBoolean('Active');
+        $topic  = $this->ReadPropertyString('Topic');
+        $this->SendDebug('ApplyChanges', 'Active=' . ($active ? 'true' : 'false') . ', Topic=' . $topic, 0);
+
         // Wenn deaktiviert, keine Variablen etc.
-        if (!$this->ReadPropertyBoolean('Active')) {
+        if (!$active) {
             return;
         }
 
@@ -89,10 +94,10 @@ class Wordclock extends IPSModule
                     'caption' => 'Aktiv'
                 ],
                 [
-                'type'    => 'ValidationTextBox',
-                'name'    => 'Topic',
-                'caption' => 'Basis-Topic',
-                'width'   => '400px'
+                    'type'    => 'ValidationTextBox',
+                    'name'    => 'Topic',
+                    'caption' => 'Basis-Topic',
+                    'width'   => '400px'
                 ]
             ]
         ];
@@ -102,49 +107,65 @@ class Wordclock extends IPSModule
 
     public function ReceiveData($JSONString)
     {
+        $this->SendDebug('ReceiveData', 'Raw=' . $JSONString, 0);
+
         $data = json_decode($JSONString, true);
         if (!is_array($data)) {
+            $this->SendDebug('ReceiveData', 'JSON decode fehlgeschlagen', 0);
             return;
         }
 
         // RX-DataID des MQTT-Splitters prüfen
         if (!isset($data['DataID']) || $data['DataID'] !== '{7F7632D9-FA40-4F38-8DEA-C83CD4325A32}') {
+            $this->SendDebug('ReceiveData', 'Andere DataID: ' . ($data['DataID'] ?? 'null'), 0);
             return;
         }
 
         // Basis-Topic holen und /status anhängen
         $baseTopic   = rtrim($this->ReadPropertyString('Topic'), '/');
         if ($baseTopic === '') {
+            $this->SendDebug('ReceiveData', 'Kein Basis-Topic gesetzt', 0);
             return;
         }
         $statusTopic = $baseTopic . '/status';
 
         // Nur Status-Topic der Wordclock verarbeiten
         if (!isset($data['Topic']) || $data['Topic'] !== $statusTopic) {
+            $this->SendDebug('ReceiveData', 'Ignoriere Topic=' . ($data['Topic'] ?? 'null') . ', erwartet=' . $statusTopic, 0);
             return;
         }
+
+        $this->SendDebug('ReceiveData', 'Topic=' . $data['Topic'], 0);
 
         // Throttle: max. 1x/s
         $now  = time();
         $last = $this->ReadAttributeInteger('LastParseTS');
         if (($now - $last) < 1) {
+            $this->SendDebug('ReceiveData', 'Throttle aktiv, letztes Parse vor ' . ($now - $last) . 's', 0);
             return;
         }
         $this->WriteAttributeInteger('LastParseTS', $now);
 
         if (!isset($data['Payload'])) {
+            $this->SendDebug('ReceiveData', 'Kein Payload vorhanden', 0);
             return;
         }
 
         $json = (string)$data['Payload'];
         if (trim($json) === '') {
+            $this->SendDebug('ReceiveData', 'Payload ist leer', 0);
             return;
         }
 
+        $this->SendDebug('ReceiveData', 'Payload=' . $json, 0);
+
         $state = json_decode($json, true);
         if (!is_array($state)) {
+            $this->SendDebug('ReceiveData', 'Payload JSON decode fehlgeschlagen', 0);
             return;
         }
+
+        $this->SendDebug('ReceiveData', 'Decoded=' . print_r($state, true), 0);
 
         $h = null;
         $s = null;
@@ -153,31 +174,38 @@ class Wordclock extends IPSModule
         // brightness (0–255)
         if (isset($state['brightness'])) {
             $v = (float)$state['brightness'];
+            $this->SendDebug('ReceiveData', 'brightness=' . $v, 0);
             $this->SetValueFloatIfChanged('Brightness', $v);
         }
 
         // color.h (0–360)
         if (isset($state['color']['h'])) {
             $h = (int)$state['color']['h'];
+            $this->SendDebug('ReceiveData', 'color.h=' . $h, 0);
             $this->SetValueIntegerIfChanged('Hue', $h);
         }
 
         // color.s (0–100)
         if (isset($state['color']['s'])) {
             $s = (int)$state['color']['s'];
+            $this->SendDebug('ReceiveData', 'color.s=' . $s, 0);
             $this->SetValueIntegerIfChanged('Saturation', $s);
         }
 
         if ($h !== null && $s !== null && $v !== null) {
             $rgb = $this->HSVtoRGB($h, $s, $v);  // h:0–360, s:0–100, v:0–255
             $colorInt = ($rgb['r'] << 16) | ($rgb['g'] << 8) | $rgb['b'];
+            $this->SendDebug('ReceiveData', 'RGB=' . json_encode($rgb) . ', ColorInt=' . $colorInt, 0);
             $this->SetValueIntegerIfChanged('Color', $colorInt);
         }
     }
 
     public function RequestAction($Ident, $Value)
     {
+        $this->SendDebug('RequestAction', 'Ident=' . $Ident . ', Value=' . json_encode($Value), 0);
+
         if (!$this->ReadPropertyBoolean('Active')) {
+            $this->SendDebug('RequestAction', 'Instanz inaktiv, Abbruch', 0);
             return;
         }
 
@@ -207,6 +235,8 @@ class Wordclock extends IPSModule
                 $b = $colorInt & 0xFF;
 
                 $hsv = $this->RGBtoHSV($r, $g, $b); // h:0–360, s:0–100, v:0–255
+                $this->SendDebug('RequestAction', 'RGBtoHSV=' . json_encode($hsv), 0);
+
                 $this->SetValue('Hue', (int)round($hsv['h']));
                 $this->SetValue('Saturation', (int)round($hsv['s']));
                 // $hsv['v'] ignorieren, da Helligkeit separat geführt wird
@@ -228,6 +258,7 @@ class Wordclock extends IPSModule
     {
         $baseTopic    = rtrim($this->ReadPropertyString('Topic'), '/');
         if ($baseTopic === '') {
+            $this->SendDebug('SendState', 'Kein Basis-Topic gesetzt, Abbruch', 0);
             return;
         }
         $commandTopic = $baseTopic . '/cmd';
@@ -249,13 +280,17 @@ class Wordclock extends IPSModule
             $payload['effect'] = $effectName;
         }
 
+        $jsonPayload = json_encode($payload, JSON_UNESCAPED_SLASHES);
+
+        $this->SendDebug('SendState', 'Topic=' . $commandTopic . ', Payload=' . $jsonPayload, 0);
+
         $mqttPacket = [
             'DataID'           => '{043EA491-0325-4ADD-8FC2-A30C8EEB4D3F}', // TX
             'PacketType'       => 3,
             'QualityOfService' => 0,
             'Retain'           => false,
             'Topic'            => $commandTopic,
-            'Payload'          => json_encode($payload, JSON_UNESCAPED_SLASHES)
+            'Payload'          => $jsonPayload
         ];
 
         $this->SendDataToParent(json_encode($mqttPacket));
@@ -263,20 +298,26 @@ class Wordclock extends IPSModule
 
     private function SetValueIntegerIfChanged(string $Ident, int $new): void
     {
-        if ($this->GetValue($Ident) !== $new) {
+        $old = $this->GetValue($Ident);
+        if ($old !== $new) {
+            $this->SendDebug('SetValueIntegerIfChanged', $Ident . ': ' . $old . ' -> ' . $new, 0);
             $this->SetValue($Ident, $new);
         }
     }
 
     private function SetValueFloatIfChanged(string $Ident, float $new): void
     {
-        if (abs((float)$this->GetValue($Ident) - $new) > 0.0001) {
+        $old = (float)$this->GetValue($Ident);
+        if (abs($old - $new) > 0.0001) {
+            $this->SendDebug('SetValueFloatIfChanged', $Ident . ': ' . $old . ' -> ' . $new, 0);
             $this->SetValue($Ident, $new);
         }
     }
 
     private function EnsureProfiles(): void
     {
+        $this->SendDebug('EnsureProfiles', 'Profile prüfen/anlegen', 0);
+
         $ensureProfile = function (string $name, int $type, callable $init = null) {
             if (IPS_VariableProfileExists($name)) {
                 $p = IPS_GetVariableProfile($name);
