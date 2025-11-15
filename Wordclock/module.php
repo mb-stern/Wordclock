@@ -124,7 +124,7 @@ class Wordclock extends IPSModule
         }
 
         // Wenn du magst, kannst du DataID auch ignorieren – hier prüfe ich sie explizit:
-        if (!isset($data['DataID']) || $data['DataID'] !== self::MQTT_RX_GUID) {
+        if (!isset($data['DataID']) || $data['DataID'] !== self::'{7F7632D9-FA40-4F38-8DEA-C83CD4325A32}') {
             return;
         }
 
@@ -271,7 +271,7 @@ class Wordclock extends IPSModule
         }
 
         $mqttPacket = [
-            'DataID'           => self::MQTT_TX_GUID,
+            'DataID'           => self::'{043EA491-0325-4ADD-8FC2-A30C8EEB4D3F}',
             'PacketType'       => 3, // PUBLISH
             'QualityOfService' => 0,
             'Retain'           => false,
