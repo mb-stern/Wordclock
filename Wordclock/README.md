@@ -25,7 +25,7 @@ Es wertet den Status der Uhr aus, stellt komfortable Steuervariablen bereit (Hel
 
 | Option | Beschreibung |
 |--------|--------------|
-| **Basis-Topic** | MQTT-Basis-Topic ohne `/status` oder `/cmd` |
+| **Basis-Topic** | MQTT-Basis-Topic aus der Konfgiguration - Smart Home der Wordclock |
 
 ## Erzeugte Variablen
 
