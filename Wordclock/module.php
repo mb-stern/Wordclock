@@ -8,19 +8,15 @@ class Wordclock extends IPSModule
     {
         parent::Create();
 
-        // MQTT-Parent verbinden (Struktur wie bei deinem Goodwe-Modul)
+        // MQTT-Parent verbinden
         $this->ConnectParent('{C6D2AEB3-6E1F-4B2E-8E69-3A1A00246850}');
 
         // Eigenschaften
         $this->RegisterPropertyBoolean('Active', true);
-        $this->RegisterPropertyString('StatusTopic', 'Wordclock/status');
-        $this->RegisterPropertyString('CommandTopic', 'Wordclock/cmd');
+        $this->RegisterPropertyString('Topic', 'Wordclock');
 
         // Interner Timestamp für Throttle (statt eigener Variable)
         $this->RegisterAttributeInteger('LastParseTS', 0);
-
-        // Profile einmalig anlegen
-        $this->EnsureProfiles();
     }
 
     public function ApplyChanges()
@@ -78,6 +74,9 @@ class Wordclock extends IPSModule
             25
         );
         $this->EnableAction('Saturation');
+
+        // Profile anlegen
+        $this->EnsureProfiles();
     }
 
     public function GetConfigurationForm()
@@ -90,16 +89,10 @@ class Wordclock extends IPSModule
                     'caption' => 'Aktiv'
                 ],
                 [
-                    'type'    => 'ValidationTextBox',
-                    'name'    => 'StatusTopic',
-                    'caption' => 'Status-Topic (von Wordclock)',
-                    'width'   => '400px'
-                ],
-                [
-                    'type'    => 'ValidationTextBox',
-                    'name'    => 'CommandTopic',
-                    'caption' => 'Command-Topic (zur Wordclock)',
-                    'width'   => '400px'
+                'type'    => 'ValidationTextBox',
+                'name'    => 'Topic',
+                'caption' => 'Basis-Topic',
+                'width'   => '400px'
                 ]
             ]
         ];
@@ -107,9 +100,6 @@ class Wordclock extends IPSModule
         return json_encode($form);
     }
 
-    /**
-     * ReceiveData – wird vom MQTT-Parent aufgerufen
-     */
     public function ReceiveData($JSONString)
     {
         $data = json_decode($JSONString, true);
@@ -117,22 +107,24 @@ class Wordclock extends IPSModule
             return;
         }
 
-        // RX-DataID des MQTT-Splitters prüfen (optional, aber sauber)
+        // RX-DataID des MQTT-Splitters prüfen
         if (!isset($data['DataID']) || $data['DataID'] !== '{7F7632D9-FA40-4F38-8DEA-C83CD4325A32}') {
             return;
         }
 
-        $statusTopic = $this->ReadPropertyString('StatusTopic');
-        if ($statusTopic === '') {
+        // Basis-Topic holen und /status anhängen
+        $baseTopic   = rtrim($this->ReadPropertyString('Topic'), '/');
+        if ($baseTopic === '') {
             return;
         }
+        $statusTopic = $baseTopic . '/status';
 
-        // Nur das gewünschte Status-Topic verarbeiten
+        // Nur Status-Topic der Wordclock verarbeiten
         if (!isset($data['Topic']) || $data['Topic'] !== $statusTopic) {
             return;
         }
 
-        // Throttle: max. 1x/s (wie dein InternalTS im Script)
+        // Throttle: max. 1x/s
         $now  = time();
         $last = $this->ReadAttributeInteger('LastParseTS');
         if (($now - $last) < 1) {
@@ -153,8 +145,6 @@ class Wordclock extends IPSModule
         if (!is_array($state)) {
             return;
         }
-
-        // ---- Logik aus deinem ursprünglichen Script ----
 
         $h = null;
         $s = null;
@@ -178,9 +168,6 @@ class Wordclock extends IPSModule
             $this->SetValueIntegerIfChanged('Saturation', $s);
         }
 
-        // Effekt wird bewusst NICHT aus dem JSON übernommen
-
-        // Color (Hex) aus HSV, wenn alles vorhanden
         if ($h !== null && $s !== null && $v !== null) {
             $rgb = $this->HSVtoRGB($h, $s, $v);  // h:0–360, s:0–100, v:0–255
             $colorInt = ($rgb['r'] << 16) | ($rgb['g'] << 8) | $rgb['b'];
@@ -188,9 +175,6 @@ class Wordclock extends IPSModule
         }
     }
 
-    /**
-     * RequestAction – reagiert auf WebFront/Skript-Änderungen
-     */
     public function RequestAction($Ident, $Value)
     {
         if (!$this->ReadPropertyBoolean('Active')) {
@@ -237,19 +221,16 @@ class Wordclock extends IPSModule
                 throw new Exception('Invalid Ident');
         }
 
-        // Danach Zustand zur Wordclock senden
         $this->SendStateToWordclock($includeEffect);
     }
 
-    /**
-     * Zustand als JSON an das Command-Topic publizieren
-     */
     private function SendStateToWordclock(bool $includeEffect): void
     {
-        $commandTopic = $this->ReadPropertyString('CommandTopic');
-        if ($commandTopic === '') {
+        $baseTopic    = rtrim($this->ReadPropertyString('Topic'), '/');
+        if ($baseTopic === '') {
             return;
         }
+        $commandTopic = $baseTopic . '/cmd';
 
         $brightness = $this->GetValue('Brightness');
         $h          = $this->GetValue('Hue');
@@ -269,8 +250,8 @@ class Wordclock extends IPSModule
         }
 
         $mqttPacket = [
-            'DataID'           => '{043EA491-0325-4ADD-8FC2-A30C8EEB4D3F}',
-            'PacketType'       => 3, // PUBLISH
+            'DataID'           => '{043EA491-0325-4ADD-8FC2-A30C8EEB4D3F}', // TX
+            'PacketType'       => 3,
             'QualityOfService' => 0,
             'Retain'           => false,
             'Topic'            => $commandTopic,
@@ -279,10 +260,6 @@ class Wordclock extends IPSModule
 
         $this->SendDataToParent(json_encode($mqttPacket));
     }
-
-    // -----------------------------------------------------------------
-    // Helper: SetValue only if changed
-    // -----------------------------------------------------------------
 
     private function SetValueIntegerIfChanged(string $Ident, int $new): void
     {
@@ -297,10 +274,6 @@ class Wordclock extends IPSModule
             $this->SetValue($Ident, $new);
         }
     }
-
-    // -----------------------------------------------------------------
-    // Profile & Effekte
-    // -----------------------------------------------------------------
 
     private function EnsureProfiles(): void
     {
@@ -378,13 +351,6 @@ class Wordclock extends IPSModule
         return $effects[$idx] ?? null;
     }
 
-    // -----------------------------------------------------------------
-    // RGB <-> HSV wie in deinem Script
-    // -----------------------------------------------------------------
-
-    /**
-     * RGB (0–255) → HSV (h:0–360, s:0–100, v:0–255)
-     */
     private function RGBtoHSV(int $r, int $g, int $b): array
     {
         $r_f = $r / 255.0;
@@ -415,9 +381,6 @@ class Wordclock extends IPSModule
         return ['h' => $h, 's' => $s, 'v' => $v];
     }
 
-    /**
-     * HSV (h:0–360, s:0–100, v:0–255) → RGB (0–255)
-     */
     private function HSVtoRGB(float $h, float $s, float $v): array
     {
         $s /= 100.0;
