@@ -4,9 +4,6 @@ declare(strict_types=1);
 
 class Wordclock extends IPSModule
 {
-    // HIER: GUID deines MQTT-Parents eintragen (MQTT Client / MQTT Server / Gateway)
-    private const MQTT_PARENT_GUID = '{MQTT_PARENT_GUID}';
-
     // DataIDs für das MQTT-Protokoll (Symcon MQTT)
     // TX: vom Modul → MQTT
     private const MQTT_TX_GUID = '{043EA491-0325-4ADD-8FC2-A30C8EEB4D3F}';
@@ -18,7 +15,7 @@ class Wordclock extends IPSModule
         parent::Create();
 
         // MQTT-Parent verbinden (Struktur wie bei deinem Goodwe-Modul)
-        $this->ConnectParent(self::MQTT_PARENT_GUID);
+        $this->ConnectParent('{6DCA8C7D-83C6-4AA4-9F93-5DFF485E120E}');
 
         // Eigenschaften
         $this->RegisterPropertyBoolean('Active', true);
