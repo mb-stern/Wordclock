@@ -4,7 +4,7 @@ Dieses Modul integriert eine **Wordclock LED-Uhr** über **MQTT** in IP-Symcon.
 
 Es wertet den Status der Uhr aus, stellt komfortable Steuervariablen bereit (Helligkeit, Farbe, Effekte) und sendet Änderungen automatisch über MQTT zurück an die Uhr.
 
-Beim Anlegen der Instanz wird ebenfalls eine MQTT-Server Instanz angelegt. Diese und der entsprechende Server Socket sind ebenfalls zu konfigurieren, entsprechend der Wordclock MQTT-Konfiguration.
+Beim Anlegen der Instanz wird ebenfalls eine MQTT-Server Instanz angelegt, wenn noch keine besteht. Diese und der entsprechende Server Socket sind ebenfalls zu konfigurieren, entsprechend der Wordclock MQTT-Konfiguration.
 
 ## Funktionen
 
