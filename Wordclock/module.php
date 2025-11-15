@@ -28,13 +28,6 @@ class Wordclock extends IPSModule
         $topic  = $this->ReadPropertyString('Topic');
         $this->SendDebug('ApplyChanges', 'Active=' . ($active ? 'true' : 'false') . ', Topic=' . $topic, 0);
 
-        // Wenn deaktiviert, keine Variablen etc.
-        if (!$active) {
-            return;
-        }
-
-        // --- Variablen: mit RegisterVariable..., nicht Maintain... ---
-
         // Farbe (HexColor)
         $this->RegisterVariableInteger(
             'Color',
@@ -88,11 +81,6 @@ class Wordclock extends IPSModule
     {
         $form = [
             'elements' => [
-                [
-                    'type'    => 'CheckBox',
-                    'name'    => 'Active',
-                    'caption' => 'Aktiv'
-                ],
                 [
                     'type'    => 'ValidationTextBox',
                     'name'    => 'Topic',
