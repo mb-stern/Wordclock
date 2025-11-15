@@ -1,0 +1,14 @@
+{
+    "id": "{E3C5FE2A-57F8-4E8F-8C86-1C2F91D1A111}",
+    "name": "Wordclock",
+    "type": 3,
+    "vendor": "",
+    "aliases": [
+        "Wordclock"
+    ],
+    "parentRequirements": ["{043EA491-0325-4ADD-8FC2-A30C8EEB4D3F}"],
+    "childRequirements": [],
+    "implemented": ["{7F7632D9-FA40-4F38-8DEA-C83CD4325A32}"],
+    "prefix": "WCLOCK",
+    "url": "https://github.com/mb-stern/Wordclock/tree/beta"
+  }
