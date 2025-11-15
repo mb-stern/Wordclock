@@ -12,7 +12,6 @@ Es wertet den Status der Uhr aus, stellt komfortable Steuervariablen bereit (Hel
 - Farbauswahl über HexColor + automatische Umrechnung in Hue/Saturation
 - Einstellbarer Effekt über Variablenprofil `Wordclock.Effect`
 - Debug-Ausgaben für alle MQTT-Ein-/Ausgänge
-- Keine Timer oder Events notwendig
 
 ## Installation
 
