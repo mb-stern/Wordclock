@@ -4,13 +4,7 @@ declare(strict_types=1);
 
 class Wordclock extends IPSModule
 {
-    // DataIDs für das MQTT-Protokoll (Symcon MQTT)
-    // TX: vom Modul → MQTT
-    private const MQTT_TX_GUID = '{043EA491-0325-4ADD-8FC2-A30C8EEB4D3F}';
-    // RX: vom MQTT → Modul
-    private const MQTT_RX_GUID = '{7F7632D9-FA40-4F38-8DEA-C83CD4325A32}';
-
-    public function Create()
+  public function Create()
     {
         parent::Create();
 
@@ -275,12 +269,12 @@ class Wordclock extends IPSModule
         }
 
         $mqttPacket = [
-            'DataID'           => self::'{043EA491-0325-4ADD-8FC2-A30C8EEB4D3F}',
+            'DataID'           => '{043EA491-0325-4ADD-8FC2-A30C8EEB4D3F}', // TX
             'PacketType'       => 3, // PUBLISH
             'QualityOfService' => 0,
             'Retain'           => false,
             'Topic'            => $commandTopic,
-            'Payload'          => json_encode($payload, JSON_UNESCAPED_SLASHES)
+            'Payload'          => $json
         ];
 
         $this->SendDataToParent(json_encode($mqttPacket));
