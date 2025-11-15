@@ -123,8 +123,8 @@ class Wordclock extends IPSModule
             return;
         }
 
-        // Wenn du magst, kannst du DataID auch ignorieren – hier prüfe ich sie explizit:
-        if (!isset($data['DataID']) || $data['DataID'] !== self::"{7F7632D9-FA40-4F38-8DEA-C83CD4325A32}") {
+        // RX-DataID des MQTT-Splitters prüfen (optional, aber sauber)
+        if (!isset($data['DataID']) || $data['DataID'] !== '{7F7632D9-FA40-4F38-8DEA-C83CD4325A32}') {
             return;
         }
 
@@ -138,7 +138,7 @@ class Wordclock extends IPSModule
             return;
         }
 
-        // Throttle: max. 1x/s (wie dein InternalTS)
+        // Throttle: max. 1x/s (wie dein InternalTS im Script)
         $now  = time();
         $last = $this->ReadAttributeInteger('LastParseTS');
         if (($now - $last) < 1) {
@@ -146,11 +146,15 @@ class Wordclock extends IPSModule
         }
         $this->WriteAttributeInteger('LastParseTS', $now);
 
-        if (!isset($data['Payload']) || trim((string)$data['Payload']) === '') {
+        if (!isset($data['Payload'])) {
             return;
         }
 
         $json = (string)$data['Payload'];
+        if (trim($json) === '') {
+            return;
+        }
+
         $state = json_decode($json, true);
         if (!is_array($state)) {
             return;
