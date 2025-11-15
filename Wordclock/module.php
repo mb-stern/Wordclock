@@ -13,7 +13,6 @@ class Wordclock extends IPSModule
         $this->SendDebug('Create', 'MQTT-Parent verbunden', 0);
 
         // Eigenschaften
-        $this->RegisterPropertyBoolean('Active', true);
         $this->RegisterPropertyString('Topic', 'Wordclock');
 
         // Interner Timestamp für Throttle (statt eigener Variable)
@@ -24,9 +23,10 @@ class Wordclock extends IPSModule
     {
         parent::ApplyChanges();
 
-        $active = $this->ReadPropertyBoolean('Active');
-        $topic  = $this->ReadPropertyString('Topic');
-        $this->SendDebug('ApplyChanges', 'Active=' . ($active ? 'true' : 'false') . ', Topic=' . $topic, 0);
+        $topic = $this->ReadPropertyString('Topic');
+        $this->SendDebug('ApplyChanges', 'Topic=' . $topic, 0);
+
+        // --- Variablen: mit RegisterVariable..., nicht Maintain... ---
 
         // Farbe (HexColor)
         $this->RegisterVariableInteger(
@@ -192,11 +192,6 @@ class Wordclock extends IPSModule
     {
         $this->SendDebug('RequestAction', 'Ident=' . $Ident . ', Value=' . json_encode($Value), 0);
 
-        if (!$this->ReadPropertyBoolean('Active')) {
-            $this->SendDebug('RequestAction', 'Instanz inaktiv, Abbruch', 0);
-            return;
-        }
-
         $includeEffect = false;
 
         switch ($Ident) {
@@ -227,7 +222,6 @@ class Wordclock extends IPSModule
 
                 $this->SetValue('Hue', (int)round($hsv['h']));
                 $this->SetValue('Saturation', (int)round($hsv['s']));
-                // $hsv['v'] ignorieren, da Helligkeit separat geführt wird
                 break;
 
             case 'Effect':
