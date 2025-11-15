@@ -15,7 +15,7 @@ class Wordclock extends IPSModule
         parent::Create();
 
         // MQTT-Parent verbinden (Struktur wie bei deinem Goodwe-Modul)
-        $this->ConnectParent('{6DCA8C7D-83C6-4AA4-9F93-5DFF485E120E}');
+        $this->ConnectParent('{C6D2AEB3-6E1F-4B2E-8E69-3A1A00246850}');
 
         // Eigenschaften
         $this->RegisterPropertyBoolean('Active', true);
