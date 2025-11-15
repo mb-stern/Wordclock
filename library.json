@@ -1,0 +1,10 @@
+{
+    "id": "{F8B4D54F-5B3F-4A4A-8E3B-75A5EDC68E01}",
+    "name": "Wordclock",
+    "author": "Stefan Künzli",
+    "url": "https://github.com/mb-stern/Wordclock",
+    "compatibility": {
+        "version": "7.0"
+    },
+    "version": 1.0
+}
