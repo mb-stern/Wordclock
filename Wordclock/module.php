@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 class Wordclock extends IPSModule
 {
-  public function Create()
+    public function Create()
     {
         parent::Create();
 
@@ -269,12 +269,12 @@ class Wordclock extends IPSModule
         }
 
         $mqttPacket = [
-            'DataID'           => '{043EA491-0325-4ADD-8FC2-A30C8EEB4D3F}', // TX
+            'DataID'           => '{043EA491-0325-4ADD-8FC2-A30C8EEB4D3F}',
             'PacketType'       => 3, // PUBLISH
             'QualityOfService' => 0,
             'Retain'           => false,
             'Topic'            => $commandTopic,
-            'Payload'          => $json
+            'Payload'          => json_encode($payload, JSON_UNESCAPED_SLASHES)
         ];
 
         $this->SendDataToParent(json_encode($mqttPacket));
