@@ -6,6 +6,8 @@ Es wertet den Status der Uhr aus, stellt komfortable Steuervariablen bereit (Hel
 
 Beim Anlegen der Instanz wird ebenfalls eine MQTT-Server Instanz angelegt, wenn noch keine besteht. Diese und der entsprechende Server Socket sind ebenfalls zu konfigurieren, entsprechend der Wordclock MQTT-Konfiguration.
 
+Die Wordclock muss danach allenfalls neu gestartet werden.
+
 ## Funktionen
 
 - Empfängt Wordclock-Status über MQTT (`<Topic>/status`)
