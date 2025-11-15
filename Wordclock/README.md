@@ -93,6 +93,11 @@ Geloggte Infos:
 - WebFront-Aktionen
 - RGB/HSV Berechnungen
 
+## Versionen
+
+### Version 1.00 (15.11.2025)
+- Initiale Version.
+
 ## Lizenz
 
 MIT License  
