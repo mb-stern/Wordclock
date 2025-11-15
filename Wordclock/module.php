@@ -124,7 +124,7 @@ class Wordclock extends IPSModule
         }
 
         // Wenn du magst, kannst du DataID auch ignorieren – hier prüfe ich sie explizit:
-        if (!isset($data['DataID']) || $data['DataID'] !== self::'{7F7632D9-FA40-4F38-8DEA-C83CD4325A32}') {
+        if (!isset($data['DataID']) || $data['DataID'] !== self::{7F7632D9-FA40-4F38-8DEA-C83CD4325A32}) {
             return;
         }
 
