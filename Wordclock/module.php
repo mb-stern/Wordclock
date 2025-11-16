@@ -22,9 +22,6 @@ class Wordclock extends IPSModule
     {
         parent::ApplyChanges();
 
-        // Profile anlegen
-        $this->EnsureProfiles();
-
         // Farbe (HexColor)
         $this->RegisterVariableInteger(
             'Color',
@@ -34,7 +31,7 @@ class Wordclock extends IPSModule
         );
         $this->EnableAction('Color');
 
-        // Helligkeit 0–100%
+        // Helligkeit 0–100% (Integer mit Standardprofil)
         $this->RegisterVariableInteger(
             'Brightness',
             'Helligkeit',
@@ -43,7 +40,7 @@ class Wordclock extends IPSModule
         );
         $this->EnableAction('Brightness');
 
-        // Effekt
+        // Effekt (Integer mit Profil)
         $this->RegisterVariableInteger(
             'Effect',
             'Effekt',
@@ -52,7 +49,7 @@ class Wordclock extends IPSModule
         );
         $this->EnableAction('Effect');
 
-        // Hue 0–360°
+        // Hue 0–360° (eigenes Profil)
         $this->RegisterVariableInteger(
             'Hue',
             'Farbton',
@@ -61,7 +58,7 @@ class Wordclock extends IPSModule
         );
         $this->EnableAction('Hue');
 
-        // Saturation 0–100%
+        // Saturation 0–100% (Standardprofil)
         $this->RegisterVariableInteger(
             'Saturation',
             'Sättigung',
@@ -69,6 +66,18 @@ class Wordclock extends IPSModule
             25
         );
         $this->EnableAction('Saturation');
+
+        // Scrolling-Text (nur bei Änderung senden)
+        $this->RegisterVariableString(
+            'ScrollingText',
+            'Lauftext',
+            '~TextBox',
+            30
+        );
+        $this->EnableAction('ScrollingText');
+
+        // Profile anlegen
+        $this->EnsureProfiles();
     }
 
     public function GetConfigurationForm()
@@ -176,7 +185,7 @@ class Wordclock extends IPSModule
 
     public function RequestAction($Ident, $Value)
     {
-        // Änderung aus dem Modul
+        // Änderung aus dem Modul (eine Zeile)
         $this->SendDebug('RequestAction', $Ident . '=' . json_encode($Value), 0);
 
         $includeEffect = false;
@@ -229,11 +238,37 @@ class Wordclock extends IPSModule
                 $includeEffect = true;
                 break;
 
+            case 'ScrollingText':
+                $newText = (string)$Value;
+                $oldText = $this->GetValue('ScrollingText');
+
+                // Nur senden, wenn der Text sich wirklich geändert hat
+                if ($newText !== $oldText) {
+                    $this->SetValue('ScrollingText', $newText);
+                    $this->SendScrollingText($newText);
+                }
+                // kein normaler SendStateToWordclock, nur Text senden
+                return;
+
             default:
                 throw new Exception('Invalid Ident');
         }
 
+        // Für alle anderen Änderungen normalen State senden
         $this->SendStateToWordclock($includeEffect);
+    }
+
+    // Öffentliche Methode für Skripte:
+    // Wordclock_SetScrollingText(InstanzID, 'Gute Nacht!');
+    public function SetScrollingText(string $text): void
+    {
+        $this->SendDebug('SetScrollingText', 'Text=' . $text, 0);
+
+        $oldText = $this->GetValue('ScrollingText');
+        if ($text !== $oldText) {
+            $this->SetValue('ScrollingText', $text);
+            $this->SendScrollingText($text);
+        }
     }
 
     private function SendStateToWordclock(bool $includeEffect): void
@@ -253,9 +288,9 @@ class Wordclock extends IPSModule
         }
         $brightness255 = (int)round(($brightnessPercent / 100.0) * 255.0);
 
-        $h         = (int)$this->GetValue('Hue');
-        $s         = (int)$this->GetValue('Saturation');
-        $effectIdx = (int)$this->GetValue('Effect');
+        $h          = (int)$this->GetValue('Hue');
+        $s          = (int)$this->GetValue('Saturation');
+        $effectIdx  = (int)$this->GetValue('Effect');
         $effectName = $this->EffectIndexToName($effectIdx);
 
         // TX: Werte der gesendeten Variablen
@@ -287,6 +322,35 @@ class Wordclock extends IPSModule
 
         // TX: Topic + Payload
         $this->SendDebug('SendState', 'Topic=' . $commandTopic . ', Payload=' . $jsonPayload, 0);
+
+        $mqttPacket = [
+            'DataID'           => '{043EA491-0325-4ADD-8FC2-A30C8EEB4D3F}', // TX
+            'PacketType'       => 3,
+            'QualityOfService' => 0,
+            'Retain'           => false,
+            'Topic'            => $commandTopic,
+            'Payload'          => $jsonPayload
+        ];
+
+        $this->SendDataToParent(json_encode($mqttPacket));
+    }
+
+    private function SendScrollingText(string $text): void
+    {
+        $baseTopic = rtrim($this->ReadPropertyString('Topic'), '/');
+        if ($baseTopic === '') {
+            return;
+        }
+        $commandTopic = $baseTopic . '/cmd';
+
+        $payload = [
+            'scrolling_text' => $text
+        ];
+
+        $jsonPayload = json_encode($payload, JSON_UNESCAPED_SLASHES);
+
+        // TX: nur für Text – Topic + Payload
+        $this->SendDebug('SendScrollingText', 'Topic=' . $commandTopic . ', Payload=' . $jsonPayload, 0);
 
         $mqttPacket = [
             'DataID'           => '{043EA491-0325-4ADD-8FC2-A30C8EEB4D3F}', // TX
@@ -333,7 +397,7 @@ class Wordclock extends IPSModule
             }
         };
 
-        // Hue: 0–360° (Integer)
+        // Hue: 0–360° (eigenes Profil)
         $ensureProfile('Wordclock.Hue', VARIABLETYPE_INTEGER, function (string $name) {
             IPS_SetVariableProfileValues($name, 0, 360, 1);
             IPS_SetVariableProfileText($name, '', '°');
@@ -346,8 +410,6 @@ class Wordclock extends IPSModule
             IPS_SetVariableProfileIcon($name, 'Script');
 
             $effects = $this->GetEffectList();
-
-            // Neue Assoziationen setzen
             foreach ($effects as $idx => $effName) {
                 IPS_SetVariableProfileAssociation($name, $idx, $effName, '', -1);
             }
