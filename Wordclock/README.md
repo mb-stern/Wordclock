@@ -85,7 +85,7 @@ Es wertet den Status der Uhr aus, stellt komfortable Steuervariablen bereit (Hel
 
 Beispiel eines Lauftextes welcher 20 Sekunden angezeigt werden soll
 ```
-WCLOCK_ShowScrollingText(ID, "Mein Lautext!", 20);
+WCLOCK_ShowScrollingText(INSTANZ-ID, "Mein Lauftext!", 20);
 ```
 
 ## Debug Log
