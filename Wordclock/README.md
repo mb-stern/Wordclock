@@ -4,10 +4,6 @@ Dieses Modul integriert eine **Wordclock LED-Uhr** über **MQTT** in IP-Symcon.
 
 Es wertet den Status der Uhr aus, stellt komfortable Steuervariablen bereit (Helligkeit, Farbe, Effekte) und sendet Änderungen automatisch über MQTT zurück an die Uhr.
 
-Beim Anlegen der Instanz wird ebenfalls eine MQTT-Server Instanz angelegt, wenn noch keine besteht. Diese und der entsprechende Server Socket sind ebenfalls zu konfigurieren, entsprechend der Wordclock MQTT-Konfiguration.
-
-Die Wordclock muss danach allenfalls neu gestartet werden.
-
 ## Funktionen
 
 - Empfängt Wordclock-Status über MQTT (`<Topic>/status`)
@@ -15,14 +11,17 @@ Die Wordclock muss danach allenfalls neu gestartet werden.
 - Sendet Änderungen automatisch per MQTT (`<Topic>/cmd`)
 - Farbauswahl über HexColor + automatische Umrechnung in Hue/Saturation
 - Einstellbarer Effekt über Variablenprofil `Wordclock.Effect`
+- Frei definierbarer Lauftext. Die Laufzeit des Textes kann im Modul vorgegeben werden.. Die Geschwindigkeit muss jedoch in der Konfiguration der Wordclock definiert werden.
 - Debug-Ausgaben für alle MQTT-Ein-/Ausgänge
 
 ## Installation
 
 1. Repository als Modul in IP-Symcon einbinden
 2. Instanz **Wordclock** anlegen
-3. Basis-Topic konfigurieren
-4. MQTT-Server/Client als Parent verbinden
+3. Beim Anlegen der Instanz wird ebenfalls eine MQTT-Server Instanz angelegt, wenn noch keine besteht
+4. MQTT-Server und Server-Socket mit der Wordclock-Instanz verbinden und konfigurieren
+5. Basis-Topic im Konfigurationsformular konfigurieren
+6. Die Wordclock muss danach allenfalls neu gestartet werden
 
 ## Konfigurationsformular
 
@@ -39,6 +38,7 @@ Die Wordclock muss danach allenfalls neu gestartet werden.
 | `Hue` | Farbton | Integer | `Wordclock.Hue` | 0–360° |
 | `Saturation` | Sättigung | Integer | `~Intensity.100` | 0–100% |
 | `Effect` | Effekt | Integer | `Wordclock.Effect` | Effektliste |
+| `ScrollingText` | Lauftext| String | `~Textbox` | Eingabefeld |
 
 ## Variablenprofile
 
@@ -79,6 +79,13 @@ Die Wordclock muss danach allenfalls neu gestartet werden.
 }
 ```
 
+## PHP-Befehlsreferenz
+
+| Wert | Name |
+|------|-------|
+| WCLOCK_ShowScrollingText(12345, "Mein Lauftext!", 20); | Lauftext für 20 Sekunden anzeigen |
+
+
 ## Debug Log
 
 Geloggte Infos:
@@ -95,6 +102,7 @@ Geloggte Infos:
 - Helligkeit wird nun in Prozent dargestellt.
 - Debug überarbeitet.
 - Nach Möglichkeit Symcon eigene Profile verwendet.
+- Lauftext mit Laufzeit.
 
 ### Version 1.0 (15.11.2025)
 - Initiale Version.

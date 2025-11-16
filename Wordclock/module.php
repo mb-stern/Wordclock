@@ -16,6 +16,12 @@ class Wordclock extends IPSModule
 
         // Interner Timestamp für Throttle
         $this->RegisterAttributeInteger('LastParseTS', 0);
+
+        // Ursprünglicher Effekt für Lauftext-Rückkehr
+        $this->RegisterAttributeInteger('PreviousEffect', -1);
+
+        // Timer für Lauftext-Rückkehr (ms)
+        $this->RegisterTimer('ScrollingReset', 0, 'WCLOCK_ScrollingReset($_IPS[\'TARGET\']);');
     }
 
     public function ApplyChanges()
@@ -24,6 +30,8 @@ class Wordclock extends IPSModule
 
         // Profile anlegen
         $this->EnsureProfiles();
+
+        // Variablen anlegen
 
         // Farbe (HexColor)
         $this->RegisterVariableInteger(
@@ -34,7 +42,7 @@ class Wordclock extends IPSModule
         );
         $this->EnableAction('Color');
 
-        // Helligkeit 0–100%
+        // Helligkeit 0–100% (Integer mit Standardprofil)
         $this->RegisterVariableInteger(
             'Brightness',
             'Helligkeit',
@@ -43,7 +51,7 @@ class Wordclock extends IPSModule
         );
         $this->EnableAction('Brightness');
 
-        // Effekt
+        // Effekt (Integer mit Profil)
         $this->RegisterVariableInteger(
             'Effect',
             'Effekt',
@@ -52,7 +60,7 @@ class Wordclock extends IPSModule
         );
         $this->EnableAction('Effect');
 
-        // Hue 0–360°
+        // Hue 0–360° (eigenes Profil)
         $this->RegisterVariableInteger(
             'Hue',
             'Farbton',
@@ -61,7 +69,7 @@ class Wordclock extends IPSModule
         );
         $this->EnableAction('Hue');
 
-        // Saturation 0–100%
+        // Saturation 0–100% (Standardprofil)
         $this->RegisterVariableInteger(
             'Saturation',
             'Sättigung',
@@ -69,6 +77,24 @@ class Wordclock extends IPSModule
             25
         );
         $this->EnableAction('Saturation');
+
+        // Scrolling-Text
+        $this->RegisterVariableString(
+            'ScrollingText',
+            'Lauftext',
+            '~TextBox',
+            30
+        );
+        $this->EnableAction('ScrollingText');
+
+        // Lauftext-Dauer in Sekunden (0 = unendlich)
+        $this->RegisterVariableInteger(
+            'ScrollingDuration',
+            'Lauftext Dauer',
+            'Wordclock.ScrollDuration',
+            35
+        );
+        $this->EnableAction('ScrollingDuration');
     }
 
     public function GetConfigurationForm()
@@ -176,10 +202,11 @@ class Wordclock extends IPSModule
 
     public function RequestAction($Ident, $Value)
     {
-        // Änderung aus dem Modul
+        // Änderung aus dem Modul (eine Zeile)
         $this->SendDebug('RequestAction', $Ident . '=' . json_encode($Value), 0);
 
-        $includeEffect = false;
+        $includeEffect   = false;
+        $scrollingTextTx = '';
 
         switch ($Ident) {
             case 'Brightness': // 0–100 %
@@ -227,16 +254,138 @@ class Wordclock extends IPSModule
             case 'Effect':
                 $this->SetValue('Effect', (int)$Value);
                 $includeEffect = true;
+
+                // Manueller Effektwechsel: Auto-Rückkehr deaktivieren
+                $this->SetTimerInterval('ScrollingReset', 0);
+                $this->WriteAttributeInteger('PreviousEffect', -1);
+                break;
+
+            case 'ScrollingText':
+                $newText = (string)$Value;
+
+                // Originaltext mit Umlauten in der Variable speichern
+                $this->SetValue('ScrollingText', $newText);
+
+                // Text für die Uhr normalisieren (Umlaute + führendes Leerzeichen)
+                $normalized      = $this->NormalizeScrollingText($newText);
+                $sendText        = ' ' . $normalized; // 1 führendes Leerzeichen als Vorlauf
+                $scrollingTextTx = $sendText;
+
+                // aktuellen Effekt & PreviousEffect prüfen
+                $currentEffectIdx  = $this->GetValue('Effect');
+                $currentEffectName = $this->EffectIndexToName($currentEffectIdx);
+
+                $prev = $this->ReadAttributeInteger('PreviousEffect');
+
+                // Ursprünglichen Effekt nur dann merken, wenn noch keiner gespeichert ist
+                // und wir nicht schon im Scrollingtext sind
+                if ($prev < 0 && $currentEffectName !== 'Scrollingtext') {
+                    $this->WriteAttributeInteger('PreviousEffect', $currentEffectIdx);
+                    $this->SendDebug('ScrollingText', 'PreviousEffect gesetzt auf ' . $currentEffectIdx, 0);
+                }
+
+                // auf Scrollingtext schalten, falls noch nicht aktiv
+                if ($currentEffectName !== 'Scrollingtext') {
+                    $effects = $this->GetEffectList();
+                    $idx     = array_search('Scrollingtext', $effects, true);
+                    if ($idx !== false) {
+                        $this->SetValue('Effect', $idx);
+                        $includeEffect = true;
+                    }
+                }
+
+                // Laufzeit in Sekunden holen
+                $duration = 0;
+                if (@$this->GetIDForIdent('ScrollingDuration')) {
+                    $duration = (int)$this->GetValue('ScrollingDuration');
+                }
+                if ($duration < 0) {
+                    $duration = 0;
+                }
+
+                $this->SendDebug(
+                    'ScrollingText',
+                    'Duration=' . $duration . 's, StoredPreviousEffect=' . $this->ReadAttributeInteger('PreviousEffect'),
+                    0
+                );
+
+                if ($duration === 0) {
+                    // unendlich: Timer aus
+                    $this->SetTimerInterval('ScrollingReset', 0);
+                } else {
+                    // Timer in ms
+                    $this->SetTimerInterval('ScrollingReset', $duration * 1000);
+                }
+                break;
+
+            case 'ScrollingDuration':
+                $val = (int)$Value;
+                if ($val < 0) {
+                    $val = 0;
+                }
+                $this->SetValue('ScrollingDuration', $val);
+
+                // Wenn gerade Scrollingtext aktiv ist, Timer entsprechend anpassen
+                $currentEffectName = $this->EffectIndexToName($this->GetValue('Effect'));
+                if ($currentEffectName === 'Scrollingtext') {
+                    if ($val === 0) {
+                        // unendlich: Timer aus
+                        $this->SendDebug('ScrollingDuration', 'Timer aus (unendlich)', 0);
+                        $this->SetTimerInterval('ScrollingReset', 0);
+                    } else {
+                        $this->SendDebug('ScrollingDuration', 'Timer auf ' . ($val * 1000) . ' ms gesetzt', 0);
+                        $this->SetTimerInterval('ScrollingReset', $val * 1000);
+                    }
+                }
                 break;
 
             default:
                 throw new Exception('Invalid Ident');
         }
 
-        $this->SendStateToWordclock($includeEffect);
+        // Für alle Änderungen normalen State senden, ggf. inkl. Text
+        $this->SendStateToWordclock($includeEffect, $scrollingTextTx);
     }
 
-    private function SendStateToWordclock(bool $includeEffect): void
+    public function ShowScrollingText(string $text, int $duration = 0): void
+    {
+        if ($duration < 0) {
+            $duration = 0;
+        }
+
+        // Dauer im Modul setzen (wird von RequestAction ausgewertet)
+        if (@$this->GetIDForIdent('ScrollingDuration')) {
+            $this->SetValue('ScrollingDuration', $duration);
+        }
+
+        // Text setzen -> startet/aktualisiert Timer basierend auf ScrollingDuration
+        $this->RequestAction('ScrollingText', $text);
+    }
+
+    public function ScrollingReset(): void
+    {
+        $this->SendDebug('ScrollingReset', 'Timer ausgelöst', 0);
+
+        // Timer stoppen
+        $this->SetTimerInterval('ScrollingReset', 0);
+
+        $prev = $this->ReadAttributeInteger('PreviousEffect');
+        if ($prev < 0) {
+            $this->SendDebug('ScrollingReset', 'Kein PreviousEffect gesetzt, Abbruch', 0);
+            return;
+        }
+
+        // ursprünglichen Effekt wiederherstellen
+        $this->SetValue('Effect', $prev);
+        $this->WriteAttributeInteger('PreviousEffect', -1);
+
+        $this->SendDebug('ScrollingReset', 'Wechsele zurück zu EffektIdx=' . $prev, 0);
+
+        // State mit neuem Effekt zur Uhr senden (ohne neuen scrolling_text)
+        $this->SendStateToWordclock(true, '');
+    }
+
+    private function SendStateToWordclock(bool $includeEffect, string $scrollingText = ''): void
     {
         $baseTopic = rtrim($this->ReadPropertyString('Topic'), '/');
         if ($baseTopic === '') {
@@ -253,25 +402,23 @@ class Wordclock extends IPSModule
         }
         $brightness255 = (int)round(($brightnessPercent / 100.0) * 255.0);
 
-        $h         = (int)$this->GetValue('Hue');
-        $s         = (int)$this->GetValue('Saturation');
-        $effectIdx = (int)$this->GetValue('Effect');
+        $h          = (int)$this->GetValue('Hue');
+        $s          = (int)$this->GetValue('Saturation');
+        $effectIdx  = (int)$this->GetValue('Effect');
         $effectName = $this->EffectIndexToName($effectIdx);
 
-        // TX: Werte der gesendeten Variablen
-        $this->SendDebug(
-            'SendState',
-            sprintf(
-                'Values: Brightness=%d%% (%d), Hue=%d, Saturation=%d, EffectIdx=%d, EffectName=%s',
-                $brightnessPercent,
-                $brightness255,
-                $h,
-                $s,
-                $effectIdx,
-                $effectName ?? 'null'
-            ),
-            0
+        // TX: Werte der gesendeten Variablen (inkl. Text)
+        $valuesLog = sprintf(
+            'Values: Brightness=%d%% (%d), Hue=%d, Saturation=%d, EffectIdx=%d, EffectName=%s, ScrollingText="%s"',
+            $brightnessPercent,
+            $brightness255,
+            $h,
+            $s,
+            $effectIdx,
+            $effectName ?? 'null',
+            $scrollingText
         );
+        $this->SendDebug('SendState', $valuesLog, 0);
 
         $payload = [
             'state'      => 'ON',
@@ -281,6 +428,10 @@ class Wordclock extends IPSModule
 
         if ($includeEffect && $effectName !== null) {
             $payload['effect'] = $effectName;
+        }
+
+        if ($scrollingText !== '') {
+            $payload['scrolling_text'] = $scrollingText;
         }
 
         $jsonPayload = json_encode($payload, JSON_UNESCAPED_SLASHES);
@@ -298,6 +449,26 @@ class Wordclock extends IPSModule
         ];
 
         $this->SendDataToParent(json_encode($mqttPacket));
+    }
+
+    private function NormalizeScrollingText(string $text): string
+    {
+        // deutsche Umlaute ersetzen
+        $map = [
+            'ä' => 'ae',
+            'Ä' => 'Ae',
+            'ö' => 'oe',
+            'Ö' => 'Oe',
+            'ü' => 'ue',
+            'Ü' => 'Ue',
+            'ß' => 'ss'
+        ];
+        $text = strtr($text, $map);
+
+        // nicht druckbare / nicht ASCII Zeichen entfernen
+        $text = preg_replace('/[^\x20-\x7E]/', '', $text);
+
+        return $text;
     }
 
     private function SetValueIntegerIfChanged(string $Ident, int $new): void
@@ -333,7 +504,7 @@ class Wordclock extends IPSModule
             }
         };
 
-        // Hue: 0–360° (Integer)
+        // Hue: 0–360° (eigenes Profil)
         $ensureProfile('Wordclock.Hue', VARIABLETYPE_INTEGER, function (string $name) {
             IPS_SetVariableProfileValues($name, 0, 360, 1);
             IPS_SetVariableProfileText($name, '', '°');
@@ -346,11 +517,16 @@ class Wordclock extends IPSModule
             IPS_SetVariableProfileIcon($name, 'Script');
 
             $effects = $this->GetEffectList();
-
-            // Neue Assoziationen setzen
             foreach ($effects as $idx => $effName) {
                 IPS_SetVariableProfileAssociation($name, $idx, $effName, '', -1);
             }
+        });
+
+        // Lauftext-Dauer: 0–600s, Schritt 5
+        $ensureProfile('Wordclock.ScrollDuration', VARIABLETYPE_INTEGER, function (string $name) {
+            IPS_SetVariableProfileValues($name, 0, 600, 5);
+            IPS_SetVariableProfileText($name, '', ' s');
+            IPS_SetVariableProfileIcon($name, 'Clock');
         });
     }
 
