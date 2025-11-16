@@ -11,6 +11,7 @@ Es wertet den Status der Uhr aus, stellt komfortable Steuervariablen bereit (Hel
 - Sendet Änderungen automatisch per MQTT (`<Topic>/cmd`)
 - Farbauswahl über HexColor + automatische Umrechnung in Hue/Saturation
 - Einstellbarer Effekt über Variablenprofil `Wordclock.Effect`
+- Frei definierbarer Lauftext. Der Text läuft nach der Eingabe endlos und muss durch umschalten des Effekts beendet werden. Die Geschwindigkeit muss in der Konfiguration der Wordclock definiert werden.
 - Debug-Ausgaben für alle MQTT-Ein-/Ausgänge
 
 ## Installation
@@ -37,6 +38,7 @@ Es wertet den Status der Uhr aus, stellt komfortable Steuervariablen bereit (Hel
 | `Hue` | Farbton | Integer | `Wordclock.Hue` | 0–360° |
 | `Saturation` | Sättigung | Integer | `~Intensity.100` | 0–100% |
 | `Effect` | Effekt | Integer | `Wordclock.Effect` | Effektliste |
+| `ScrollingText` | Lauftext| String | `~Textbox` | Eingabefeld |
 
 ## Variablenprofile
 
@@ -93,6 +95,7 @@ Geloggte Infos:
 - Helligkeit wird nun in Prozent dargestellt.
 - Debug überarbeitet.
 - Nach Möglichkeit Symcon eigene Profile verwendet.
+- Zusätzlich Variable zur Eingabe des Lauftextes.
 
 ### Version 1.0 (15.11.2025)
 - Initiale Version.
