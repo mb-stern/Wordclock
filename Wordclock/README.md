@@ -11,7 +11,7 @@ Es wertet den Status der Uhr aus, stellt komfortable Steuervariablen bereit (Hel
 - Sendet Änderungen automatisch per MQTT (`<Topic>/cmd`)
 - Farbauswahl über HexColor + automatische Umrechnung in Hue/Saturation
 - Einstellbarer Effekt über Variablenprofil `Wordclock.Effect`
-- Frei definierbarer Lauftext. Der Text läuft nach der Eingabe endlos und muss durch umschalten des Effekts beendet werden. Die Geschwindigkeit muss in der Konfiguration der Wordclock definiert werden.
+- Frei definierbarer Lauftext. Die Laufzeit des Textes kann im Modul vorgegeben werden.. Die Geschwindigkeit muss jedoch in der Konfiguration der Wordclock definiert werden.
 - Debug-Ausgaben für alle MQTT-Ein-/Ausgänge
 
 ## Installation
@@ -77,6 +77,14 @@ Es wertet den Status der Uhr aus, stellt komfortable Steuervariablen bereit (Hel
   "brightness": 150,
   "effect": "Rainbow"
 }
+```
+
+## Befehle senden
+
+### Lauftext über Automation`
+```
+WCLOCK_ShowScrollingText(ID, "Mein Text!", 5);
+
 ```
 
 ## Debug Log
