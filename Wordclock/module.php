@@ -425,7 +425,7 @@ class Wordclock extends IPSModule
         ];
         $text = strtr($text, $map);
 
-        // optional: alle nicht druckbaren / nicht-ASCII Zeichen entfernen
+        //alle nicht druckbaren / nicht-ASCII Zeichen entfernen
         $text = preg_replace('/[^\x20-\x7E]/', '', $text);
 
         return $text;
