@@ -351,38 +351,21 @@ class Wordclock extends IPSModule
         $this->SendStateToWordclock($includeEffect, $scrollingTextTx);
     }
 
-    /**
-     * Öffentliche Funktion für Skripte:
-     * Wordclock_ShowScrollingText(12345, "Gute Nacht; 5");
-     * -> Text "Gute Nacht" für 5 Sekunden, dann zurück zum vorherigen Effekt.
-     */
-    public function ShowScrollingText(string $expression): void
+    public function ShowScrollingText(string $text, int $duration = 0): void
     {
-        // Format: "Text; 5"
-        $parts = explode(';', $expression, 2);
-        $text  = trim($parts[0]);
-        $duration = 0;
-
-        if (count($parts) === 2) {
-            $duration = (int)trim($parts[1]);
-        }
-
         if ($duration < 0) {
             $duration = 0;
         }
 
-        // Dauer-Variable setzen (damit auch im WebFront sichtbar)
+        // Dauer im Modul setzen (wird von RequestAction ausgewertet)
         if (@$this->GetIDForIdent('ScrollingDuration')) {
             $this->SetValue('ScrollingDuration', $duration);
         }
 
-        // Normale RequestAction nutzen (inkl. Timer-Logik)
+        // Text setzen -> startet/aktualisiert Timer basierend auf ScrollingDuration
         $this->RequestAction('ScrollingText', $text);
     }
 
-    /**
-     * Timer-Callback: nach Ablauf zurück zum ursprünglichen Effekt wechseln.
-     */
     public function ScrollingReset(): void
     {
         $this->SendDebug('ScrollingReset', 'Timer ausgelöst', 0);
