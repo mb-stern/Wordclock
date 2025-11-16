@@ -67,7 +67,7 @@ class Wordclock extends IPSModule
         );
         $this->EnableAction('Saturation');
 
-        // Scrolling-Text (nur bei Änderung senden)
+        // Scrolling-Text
         $this->RegisterVariableString(
             'ScrollingText',
             'Lauftext',
@@ -189,7 +189,7 @@ class Wordclock extends IPSModule
         $this->SendDebug('RequestAction', $Ident . '=' . json_encode($Value), 0);
 
         $includeEffect   = false;
-        $scrollingTextTx = null;
+        $scrollingTextTx = '';
 
         switch ($Ident) {
             case 'Brightness': // 0–100 %
@@ -241,7 +241,23 @@ class Wordclock extends IPSModule
 
             case 'ScrollingText':
                 $newText = (string)$Value;
+                $oldText = $this->GetValue('ScrollingText');
+
+                if ($newText === $oldText) {
+                    // nichts senden, wenn sich der Text nicht geändert hat
+                    return;
+                }
+
                 $this->SetValue('ScrollingText', $newText);
+                $scrollingTextTx = $newText;
+
+                // Beim Setzen des Textes automatisch auf "Scrollingtext"-Effekt schalten
+                $effects = $this->GetEffectList();
+                $idx     = array_search('Scrollingtext', $effects, true);
+                if ($idx !== false) {
+                    $this->SetValue('Effect', $idx);
+                    $includeEffect = true;
+                }
                 break;
 
             default:
@@ -259,14 +275,25 @@ class Wordclock extends IPSModule
         $this->SendDebug('SetScrollingText', 'Text=' . $text, 0);
 
         $oldText = $this->GetValue('ScrollingText');
-        if ($text !== $oldText) {
-            $this->SetValue('ScrollingText', $text);
-            // auch hier Text analog Effect über normalen State senden
-            $this->SendStateToWordclock(true, $text);
+        if ($text === $oldText) {
+            return;
         }
+
+        $this->SetValue('ScrollingText', $text);
+
+        // Wie bei RequestAction: Effekt auf "Scrollingtext" stellen
+        $effects = $this->GetEffectList();
+        $idx     = array_search('Scrollingtext', $effects, true);
+        $includeEffect = false;
+        if ($idx !== false) {
+            $this->SetValue('Effect', $idx);
+            $includeEffect = true;
+        }
+
+        $this->SendStateToWordclock($includeEffect, $text);
     }
 
-    private function SendStateToWordclock(bool $includeEffect, ?string $scrollingText = null): void
+    private function SendStateToWordclock(bool $includeEffect, string $scrollingText = ''): void
     {
         $baseTopic = rtrim($this->ReadPropertyString('Topic'), '/');
         if ($baseTopic === '') {
@@ -290,17 +317,15 @@ class Wordclock extends IPSModule
 
         // TX: Werte der gesendeten Variablen
         $valuesLog = sprintf(
-            'Values: Brightness=%d%% (%d), Hue=%d, Saturation=%d, EffectIdx=%d, EffectName=%s',
+            'Values: Brightness=%d%% (%d), Hue=%d, Saturation=%d, EffectIdx=%d, EffectName=%s, ScrollingText="%s"',
             $brightnessPercent,
             $brightness255,
             $h,
             $s,
             $effectIdx,
-            $effectName ?? 'null'
+            $effectName ?? 'null',
+            $scrollingText
         );
-        if ($scrollingText !== null && $scrollingText !== '') {
-            $valuesLog .= ', ScrollingText="' . $scrollingText . '"';
-        }
         $this->SendDebug('SendState', $valuesLog, 0);
 
         $payload = [
@@ -313,7 +338,7 @@ class Wordclock extends IPSModule
             $payload['effect'] = $effectName;
         }
 
-        if ($scrollingText !== null && $scrollingText !== '') {
+        if ($scrollingText !== '') {
             $payload['scrolling_text'] = $scrollingText;
         }
 
