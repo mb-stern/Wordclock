@@ -13,7 +13,7 @@ class Wordclock extends IPSModule
         $this->SendDebug('Create', 'MQTT-Parent verbunden', 0);
 
         // Eigenschaften
-        $this->RegisterPropertyString('Topic', 'Wordclock');
+        $this->RegisterPropertyString('Topic', 'ESPWordclock');
 
         // Interner Timestamp für Throttle (statt eigener Variable)
         $this->RegisterAttributeInteger('LastParseTS', 0);
