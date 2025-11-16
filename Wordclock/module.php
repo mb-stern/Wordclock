@@ -34,7 +34,7 @@ class Wordclock extends IPSModule
         );
         $this->EnableAction('Color');
 
-        // Helligkeit 0–100% (Integer mit Standardprofil)
+        // Helligkeit 0–100%
         $this->RegisterVariableInteger(
             'Brightness',
             'Helligkeit',
@@ -43,7 +43,7 @@ class Wordclock extends IPSModule
         );
         $this->EnableAction('Brightness');
 
-        // Effekt (Integer mit Profil)
+        // Effekt
         $this->RegisterVariableInteger(
             'Effect',
             'Effekt',
@@ -176,7 +176,7 @@ class Wordclock extends IPSModule
 
     public function RequestAction($Ident, $Value)
     {
-        // Änderung aus dem Modul (eine Zeile)
+        // Änderung aus dem Modul
         $this->SendDebug('RequestAction', $Ident . '=' . json_encode($Value), 0);
 
         $includeEffect = false;
@@ -345,13 +345,9 @@ class Wordclock extends IPSModule
             IPS_SetVariableProfileValues($name, 0, 7, 1);
             IPS_SetVariableProfileIcon($name, 'Script');
 
-            // alte Assoziationen leeren
-            $prof = IPS_GetVariableProfile($name);
-            foreach ($prof['Associations'] as $assoc) {
-                IPS_SetVariableProfileAssociation($name, $assoc['Value'], '', '', -1);
-            }
-
             $effects = $this->GetEffectList();
+
+            // Neue Assoziationen setzen
             foreach ($effects as $idx => $effName) {
                 IPS_SetVariableProfileAssociation($name, $idx, $effName, '', -1);
             }
