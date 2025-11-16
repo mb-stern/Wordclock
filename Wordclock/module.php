@@ -22,6 +22,9 @@ class Wordclock extends IPSModule
     {
         parent::ApplyChanges();
 
+        // Profile anlegen
+        $this->EnsureProfiles();
+
         // Farbe (HexColor)
         $this->RegisterVariableInteger(
             'Color',
@@ -66,9 +69,6 @@ class Wordclock extends IPSModule
             25
         );
         $this->EnableAction('Saturation');
-
-        // Profile anlegen
-        $this->EnsureProfiles();
     }
 
     public function GetConfigurationForm()
