@@ -81,7 +81,7 @@ Es wertet den Status der Uhr aus, stellt komfortable Steuervariablen bereit (Hel
 
 ## Befehle senden
 
-### Lauftext über Automation`
+### Lauftext über Automation senden`
 ```
 WCLOCK_ShowScrollingText(ID, "Mein Text!", 5);
 
