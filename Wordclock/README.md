@@ -83,7 +83,7 @@ Es wertet den Status der Uhr aus, stellt komfortable Steuervariablen bereit (Hel
 
 | Wert | Name |
 |------|-------|
-| WCLOCK_ShowScrollingText(INSTANZ-ID, "Mein Lauftext!", 20); | Lauftexte für 20 Sekunden anzeigen |
+| WCLOCK_ShowScrollingText(12345, "Mein Lauftext!", 20); | Lauftext für 20 Sekunden anzeigen |
 
 
 ## Debug Log
