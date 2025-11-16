@@ -245,10 +245,10 @@ class Wordclock extends IPSModule
                 // Text in Variable speichern (ohne Tricks)
                 $this->SetValue('ScrollingText', $newText);
 
-                // Für die Uhr: vorne ein paar Leerzeichen als „Vorlauf“
+                // Für die Uhr: vorne ein Leerzeichen als „Vorlauf“
                 // damit keine Buchstaben verschluckt werden
-                $sendText       = '   ' . $newText; // 3 führende Leerzeichen
-                $scrollingTextTx = $newText;
+                $sendText       = ' ' . $newText; // 3 führende Leerzeichen
+                $scrollingTextTx = $sendText;
 
                 // Effekt nur dann auf "Scrollingtext" umschalten,
                 // wenn er noch nicht aktiv ist
