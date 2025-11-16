@@ -334,8 +334,10 @@ class Wordclock extends IPSModule
                 if ($currentEffectName === 'Scrollingtext') {
                     if ($val === 0) {
                         // unendlich: Timer aus
+                        $this->SendDebug('ScrollingDuration', 'Timer aus (unendlich)', 0);
                         $this->SetTimerInterval('ScrollingReset', 0);
                     } else {
+                        $this->SendDebug('ScrollingDuration', 'Timer auf ' . ($val * 1000) . ' ms gesetzt', 0);
                         $this->SetTimerInterval('ScrollingReset', $val * 1000);
                     }
                 }
