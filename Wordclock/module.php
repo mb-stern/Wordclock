@@ -241,13 +241,8 @@ class Wordclock extends IPSModule
 
             case 'ScrollingText':
                 $newText = (string)$Value;
-                $oldText = $this->GetValue('ScrollingText');
 
-                if ($newText === $oldText) {
-                    // nichts senden, wenn sich der Text nicht geändert hat
-                    return;
-                }
-
+                // Immer übernehmen und immer senden – unabhängig davon, ob sich der Text geändert hat
                 $this->SetValue('ScrollingText', $newText);
                 $scrollingTextTx = $newText;
 
@@ -274,11 +269,7 @@ class Wordclock extends IPSModule
     {
         $this->SendDebug('SetScrollingText', 'Text=' . $text, 0);
 
-        $oldText = $this->GetValue('ScrollingText');
-        if ($text === $oldText) {
-            return;
-        }
-
+        // Immer übernehmen und senden
         $this->SetValue('ScrollingText', $text);
 
         // Wie bei RequestAction: Effekt auf "Scrollingtext" stellen
@@ -315,7 +306,7 @@ class Wordclock extends IPSModule
         $effectIdx  = (int)$this->GetValue('Effect');
         $effectName = $this->EffectIndexToName($effectIdx);
 
-        // TX: Werte der gesendeten Variablen
+        // TX: Werte der gesendeten Variablen (inkl. Text)
         $valuesLog = sprintf(
             'Values: Brightness=%d%% (%d), Hue=%d, Saturation=%d, EffectIdx=%d, EffectName=%s, ScrollingText="%s"',
             $brightnessPercent,
