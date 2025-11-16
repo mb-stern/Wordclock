@@ -28,7 +28,7 @@ class Wordclock extends IPSModule
         // Profile anlegen
         $this->EnsureProfiles();
 
-        // Timer für Lauftext-Rückkehr
+        // Timer für Lauftext-Rückkehr (ms)
         $this->RegisterTimer('ScrollingReset', 0, 'Wordclock_ScrollingReset($_IPS[\'TARGET\']);');
 
         // Farbe (HexColor)
@@ -92,7 +92,6 @@ class Wordclock extends IPSModule
             'Wordclock.ScrollDuration',
             35
         );
-        // Keine Action nötig, wird nur beim Start ausgelesen
     }
 
     public function GetConfigurationForm()
@@ -222,7 +221,7 @@ class Wordclock extends IPSModule
                 break;
 
             case 'Saturation':
-                $this->SetValue('Saturation', (int)$Value);
+                $this->SetValue('Sättigung', (int)$Value);
                 break;
 
             case 'Color':
@@ -238,7 +237,7 @@ class Wordclock extends IPSModule
                 $hsv = $this->RGBtoHSV($r, $g, $b); // h:0–360, s:0–100, v:0–255
 
                 $this->SetValue('Hue', (int)round($hsv['h']));
-                $this->SetValue('Saturation', (int)round($hsv['s']));
+                $this->SetValue('Sättigung', (int)round($hsv['s']));
 
                 $percent = (int)round(($hsv['v'] / 255.0) * 100.0);
                 if ($percent < 0) {
@@ -266,18 +265,15 @@ class Wordclock extends IPSModule
 
                 // Text für die Uhr normalisieren (Umlaute + führendes Leerzeichen)
                 $normalized      = $this->NormalizeScrollingText($newText);
-                $sendText        = ' ' . $normalized; // 1 führendes Leerzeichen
+                $sendText        = ' ' . $normalized; // 1 führendes Leerzeichen als Vorlauf
                 $scrollingTextTx = $sendText;
 
-                // aktuellen Effekt merken, falls noch nicht Scrollingtext
-                $currentEffectIdx  = $this->GetValue('Effect');
+                // aktuellen Effekt merken und auf Scrollingtext schalten
+                $currentEffectIdx = $this->GetValue('Effect');
+                $this->WriteAttributeInteger('PreviousEffect', $currentEffectIdx);
+
                 $currentEffectName = $this->EffectIndexToName($currentEffectIdx);
-
                 if ($currentEffectName !== 'Scrollingtext') {
-                    // ursprünglichen Effekt speichern
-                    $this->WriteAttributeInteger('PreviousEffect', $currentEffectIdx);
-
-                    // auf Scrollingtext umschalten
                     $effects = $this->GetEffectList();
                     $idx     = array_search('Scrollingtext', $effects, true);
                     if ($idx !== false) {
@@ -287,10 +283,15 @@ class Wordclock extends IPSModule
                 }
 
                 // Laufzeit in Sekunden holen
-                $duration = (int)$this->GetValue('ScrollingDuration');
+                $duration = 0;
+                if (@$this->GetIDForIdent('ScrollingDuration')) {
+                    $duration = (int)$this->GetValue('ScrollingDuration');
+                }
                 if ($duration < 0) {
                     $duration = 0;
                 }
+
+                $this->SendDebug('ScrollingText', 'Duration=' . $duration . 's, PreviousEffect=' . $currentEffectIdx, 0);
 
                 if ($duration === 0) {
                     // unendlich: Timer aus
@@ -311,15 +312,30 @@ class Wordclock extends IPSModule
 
     /**
      * Öffentliche Funktion für Skripte:
-     * Wordclock_ShowScrollingText(12345, "Gute Nacht", 5);
+     * Wordclock_ShowScrollingText(12345, "Gute Nacht; 5");
+     * -> Text "Gute Nacht" für 5 Sekunden, dann zurück zum vorherigen Effekt.
      */
-    public function ShowScrollingText(string $text, int $duration): void
+    public function ShowScrollingText(string $expression): void
     {
+        // Format: "Text; 5"
+        $parts = explode(';', $expression, 2);
+        $text  = trim($parts[0]);
+        $duration = 0;
+
+        if (count($parts) === 2) {
+            $duration = (int)trim($parts[1]);
+        }
+
         if ($duration < 0) {
             $duration = 0;
         }
 
-        $this->SetValue('ScrollingDuration', $duration);
+        // Dauer-Variable setzen (damit auch im WebFront sichtbar)
+        if (@$this->GetIDForIdent('ScrollingDuration')) {
+            $this->SetValue('ScrollingDuration', $duration);
+        }
+
+        // Normale RequestAction nutzen (inkl. Timer-Logik)
         $this->RequestAction('ScrollingText', $text);
     }
 
@@ -328,18 +344,22 @@ class Wordclock extends IPSModule
      */
     public function ScrollingReset(): void
     {
+        $this->SendDebug('ScrollingReset', 'Timer ausgelöst', 0);
+
         // Timer stoppen
         $this->SetTimerInterval('ScrollingReset', 0);
 
         $prev = $this->ReadAttributeInteger('PreviousEffect');
         if ($prev < 0) {
-            // nichts zu tun
+            $this->SendDebug('ScrollingReset', 'Kein PreviousEffect gesetzt, Abbruch', 0);
             return;
         }
 
         // ursprünglichen Effekt wiederherstellen
         $this->SetValue('Effect', $prev);
         $this->WriteAttributeInteger('PreviousEffect', -1);
+
+        $this->SendDebug('ScrollingReset', 'Wechsele zurück zu EffektIdx=' . $prev, 0);
 
         // State mit neuem Effekt zur Uhr senden (ohne neuen scrolling_text)
         $this->SendStateToWordclock(true, '');
