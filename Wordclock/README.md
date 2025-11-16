@@ -98,7 +98,10 @@ Geloggte Infos:
 
 ## Versionen
 
-### Version 1.00 (15.11.2025)
+### Version 1.1 (15.11.2025)
+- Standard Topic auf ESPWordclock geändert, was dem Standard der Uhr entspricht.
+
+### Version 1.0 (15.11.2025)
 - Initiale Version.
 
 ## Lizenz
