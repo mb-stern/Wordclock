@@ -90,7 +90,7 @@ Geloggte Infos:
 
 ## Versionen
 
-### Version 1.1 (15.11.2025)
+### Version 1.1 (16.11.2025)
 - Standard Topic auf ESPWordclock geändert, was dem Standard der Uhr entspricht.
 - Helligkeit wird nun in Prozent dargestellt.
 - Debug überarbeitet.
