@@ -94,7 +94,7 @@ Geloggte Infos:
 - Standard Topic auf ESPWordclock geändert, was dem Standard der Uhr entspricht.
 - Helligkeit wird nun in Prozent dargestellt.
 - Debug überarbeitet.
-- Anpassen der Profile
+- Nach Möglichkeit Symcon eigene Profile verwendet.
 
 ### Version 1.0 (15.11.2025)
 - Initiale Version.
