@@ -10,11 +10,12 @@ class Wordclock extends IPSModule
 
         // MQTT-Parent verbinden
         $this->ConnectParent('{C6D2AEB3-6E1F-4B2E-8E69-3A1A00246850}');
+        $this->SendDebug('Create', 'MQTT-Parent verbunden', 0);
 
         // Eigenschaften
-        $this->RegisterPropertyString('Topic', 'ESPWordclock');
+        $this->RegisterPropertyString('Topic', 'Wordclock');
 
-        // Interner Timestamp für Throttle
+        // Interner Timestamp für Throttle (statt eigener Variable)
         $this->RegisterAttributeInteger('LastParseTS', 0);
     }
 
@@ -25,6 +26,8 @@ class Wordclock extends IPSModule
         $topic = $this->ReadPropertyString('Topic');
         $this->SendDebug('ApplyChanges', 'Topic=' . $topic, 0);
 
+        // --- Variablen: mit RegisterVariable..., nicht Maintain... ---
+
         // Farbe (HexColor)
         $this->RegisterVariableInteger(
             'Color',
@@ -34,11 +37,11 @@ class Wordclock extends IPSModule
         );
         $this->EnableAction('Color');
 
-        // Helligkeit 0–100% (Integer mit Standardprofil)
-        $this->RegisterVariableInteger(
+        // Helligkeit 0–255 (Float)
+        $this->RegisterVariableFloat(
             'Brightness',
             'Helligkeit',
-            '~Intensity.100',
+            'Wordclock.Brightness',
             10
         );
         $this->EnableAction('Brightness');
@@ -107,7 +110,7 @@ class Wordclock extends IPSModule
         }
 
         // Basis-Topic holen und /status anhängen
-        $baseTopic = rtrim($this->ReadPropertyString('Topic'), '/');
+        $baseTopic   = rtrim($this->ReadPropertyString('Topic'), '/');
         if ($baseTopic === '') {
             $this->SendDebug('ReceiveData', 'Kein Basis-Topic gesetzt', 0);
             return;
@@ -152,23 +155,15 @@ class Wordclock extends IPSModule
 
         $this->SendDebug('ReceiveData', 'Decoded=' . print_r($state, true), 0);
 
-        $h    = null;
-        $s    = null;
-        $v255 = null;
+        $h = null;
+        $s = null;
+        $v = null;
 
-        // brightness (0–255 von der Uhr) -> 0–100% in Symcon
+        // brightness (0–255)
         if (isset($state['brightness'])) {
-            $v255 = (float)$state['brightness'];
-            $this->SendDebug('ReceiveData', 'brightness_raw(0-255)=' . $v255, 0);
-
-            $percent = (int)round(($v255 / 255.0) * 100.0);
-            if ($percent < 0) {
-                $percent = 0;
-            } elseif ($percent > 100) {
-                $percent = 100;
-            }
-
-            $this->SetValueIntegerIfChanged('Brightness', $percent);
+            $v = (float)$state['brightness'];
+            $this->SendDebug('ReceiveData', 'brightness=' . $v, 0);
+            $this->SetValueFloatIfChanged('Brightness', $v);
         }
 
         // color.h (0–360)
@@ -185,9 +180,8 @@ class Wordclock extends IPSModule
             $this->SetValueIntegerIfChanged('Saturation', $s);
         }
 
-        // RGB-Wert für ~HexColor berechnen, wenn alle drei Werte da sind
-        if ($h !== null && $s !== null && $v255 !== null) {
-            $rgb = $this->HSVtoRGB($h, $s, $v255);  // h:0–360, s:0–100, v:0–255
+        if ($h !== null && $s !== null && $v !== null) {
+            $rgb = $this->HSVtoRGB($h, $s, $v);  // h:0–360, s:0–100, v:0–255
             $colorInt = ($rgb['r'] << 16) | ($rgb['g'] << 8) | $rgb['b'];
             $this->SendDebug('ReceiveData', 'RGB=' . json_encode($rgb) . ', ColorInt=' . $colorInt, 0);
             $this->SetValueIntegerIfChanged('Color', $colorInt);
@@ -201,14 +195,8 @@ class Wordclock extends IPSModule
         $includeEffect = false;
 
         switch ($Ident) {
-            case 'Brightness': // 0–100 %
-                $val = (int)$Value;
-                if ($val < 0) {
-                    $val = 0;
-                } elseif ($val > 100) {
-                    $val = 100;
-                }
-                $this->SetValue('Brightness', $val);
+            case 'Brightness':
+                $this->SetValue('Brightness', (float)$Value);
                 break;
 
             case 'Hue':
@@ -224,7 +212,7 @@ class Wordclock extends IPSModule
                 $colorInt = (int)$Value;
                 $this->SetValue('Color', $colorInt);
 
-                // RGB -> HSV umrechnen und Hue/Sat/Brightness aktualisieren
+                // RGB -> HSV umrechnen und Hue/Sat aktualisieren
                 $r = ($colorInt >> 16) & 0xFF;
                 $g = ($colorInt >> 8) & 0xFF;
                 $b = $colorInt & 0xFF;
@@ -234,14 +222,6 @@ class Wordclock extends IPSModule
 
                 $this->SetValue('Hue', (int)round($hsv['h']));
                 $this->SetValue('Saturation', (int)round($hsv['s']));
-
-                $percent = (int)round(($hsv['v'] / 255.0) * 100.0);
-                if ($percent < 0) {
-                    $percent = 0;
-                } elseif ($percent > 100) {
-                    $percent = 100;
-                }
-                $this->SetValue('Brightness', $percent);
                 break;
 
             case 'Effect':
@@ -258,38 +238,24 @@ class Wordclock extends IPSModule
 
     private function SendStateToWordclock(bool $includeEffect): void
     {
-        $baseTopic = rtrim($this->ReadPropertyString('Topic'), '/');
+        $baseTopic    = rtrim($this->ReadPropertyString('Topic'), '/');
         if ($baseTopic === '') {
             $this->SendDebug('SendState', 'Kein Basis-Topic gesetzt, Abbruch', 0);
             return;
         }
         $commandTopic = $baseTopic . '/cmd';
 
-        // Helligkeit in % (0–100) -> 0–255 für die Uhr
-        $brightnessPercent = (int)$this->GetValue('Brightness');
-        if ($brightnessPercent < 0) {
-            $brightnessPercent = 0;
-        } elseif ($brightnessPercent > 100) {
-            $brightnessPercent = 100;
-        }
-        $brightness255 = (int)round(($brightnessPercent / 100.0) * 255.0);
-
-        $this->SendDebug(
-            'SendState',
-            sprintf('Brightness: %d%% => %d (0-255)', $brightnessPercent, $brightness255),
-            0
-        );
-
-        $h         = (int)$this->GetValue('Hue');
-        $s         = (int)$this->GetValue('Saturation');
-        $effectIdx = (int)$this->GetValue('Effect');
+        $brightness = $this->GetValue('Brightness');
+        $h          = $this->GetValue('Hue');
+        $s          = $this->GetValue('Saturation');
+        $effectIdx  = $this->GetValue('Effect');
 
         $effectName = $this->EffectIndexToName($effectIdx);
 
         $payload = [
             'state'      => 'ON',
             'color'      => ['h' => $h, 's' => $s],
-            'brightness' => $brightness255
+            'brightness' => $brightness
         ];
 
         if ($includeEffect && $effectName !== null) {
@@ -348,6 +314,13 @@ class Wordclock extends IPSModule
                 $init($name);
             }
         };
+
+        // Brightness: 0–255 (Float)
+        $ensureProfile('Wordclock.Brightness', VARIABLETYPE_FLOAT, function (string $name) {
+            IPS_SetVariableProfileValues($name, 0, 255, 1);
+            IPS_SetVariableProfileText($name, '', '');
+            IPS_SetVariableProfileIcon($name, 'Intensity');
+        });
 
         // Hue: 0–360° (Integer)
         $ensureProfile('Wordclock.Hue', VARIABLETYPE_INTEGER, function (string $name) {
