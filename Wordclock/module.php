@@ -159,9 +159,9 @@ class Wordclock extends IPSModule
         // brightness (0–255 von der Uhr) -> 0–100% in Symcon
         if (isset($state['brightness'])) {
             $v255 = (float)$state['brightness'];
-            $this->SendDebug('ReceiveData', 'brightness(0-255)=' . $v255, 0);
+            $this->SendDebug('ReceiveData', 'brightness_raw(0-255)=' . $v255, 0);
 
-            $percent = (int)round($v255 / 255 * 100);
+            $percent = (int)round(($v255 / 255.0) * 100.0);
             if ($percent < 0) {
                 $percent = 0;
             } elseif ($percent > 100) {
@@ -202,7 +202,13 @@ class Wordclock extends IPSModule
 
         switch ($Ident) {
             case 'Brightness': // 0–100 %
-                $this->SetValue('Brightness', (int)$Value);
+                $val = (int)$Value;
+                if ($val < 0) {
+                    $val = 0;
+                } elseif ($val > 100) {
+                    $val = 100;
+                }
+                $this->SetValue('Brightness', $val);
                 break;
 
             case 'Hue':
@@ -229,7 +235,7 @@ class Wordclock extends IPSModule
                 $this->SetValue('Hue', (int)round($hsv['h']));
                 $this->SetValue('Saturation', (int)round($hsv['s']));
 
-                $percent = (int)round($hsv['v'] / 255 * 100);
+                $percent = (int)round(($hsv['v'] / 255.0) * 100.0);
                 if ($percent < 0) {
                     $percent = 0;
                 } elseif ($percent > 100) {
@@ -260,12 +266,23 @@ class Wordclock extends IPSModule
         $commandTopic = $baseTopic . '/cmd';
 
         // Helligkeit in % (0–100) -> 0–255 für die Uhr
-        $brightnessPercent = $this->GetValue('Brightness');
-        $brightness255     = (int)round($brightnessPercent / 100 * 255);
+        $brightnessPercent = (int)$this->GetValue('Brightness');
+        if ($brightnessPercent < 0) {
+            $brightnessPercent = 0;
+        } elseif ($brightnessPercent > 100) {
+            $brightnessPercent = 100;
+        }
+        $brightness255 = (int)round(($brightnessPercent / 100.0) * 255.0);
 
-        $h         = $this->GetValue('Hue');
-        $s         = $this->GetValue('Saturation');
-        $effectIdx = $this->GetValue('Effect');
+        $this->SendDebug(
+            'SendState',
+            sprintf('Brightness: %d%% => %d (0-255)', $brightnessPercent, $brightness255),
+            0
+        );
+
+        $h         = (int)$this->GetValue('Hue');
+        $s         = (int)$this->GetValue('Saturation');
+        $effectIdx = (int)$this->GetValue('Effect');
 
         $effectName = $this->EffectIndexToName($effectIdx);
 
