@@ -21,7 +21,7 @@ class Wordclock extends IPSModule
     public function ApplyChanges()
     {
         parent::ApplyChanges();
-
+        
         // Profile anlegen
         $this->EnsureProfiles();
 
@@ -242,26 +242,16 @@ class Wordclock extends IPSModule
             case 'ScrollingText':
                 $newText = (string)$Value;
 
-                // Text in Variable speichern (ohne Tricks)
+                // Immer übernehmen und immer senden – unabhängig davon, ob sich der Text geändert hat
                 $this->SetValue('ScrollingText', $newText);
+                $scrollingTextTx = $newText;
 
-                // Für die Uhr: vorne ein paar Leerzeichen als „Vorlauf“
-                // damit keine Buchstaben verschluckt werden
-                $sendText       = '   ' . $newText; // 3 führende Leerzeichen
-                $scrollingTextTx = $sendText;
-
-                // Effekt nur dann auf "Scrollingtext" umschalten,
-                // wenn er noch nicht aktiv ist
-                $currentEffectIdx  = $this->GetValue('Effect');
-                $currentEffectName = $this->EffectIndexToName($currentEffectIdx);
-
-                if ($currentEffectName !== 'Scrollingtext') {
-                    $effects = $this->GetEffectList();
-                    $idx     = array_search('Scrollingtext', $effects, true);
-                    if ($idx !== false) {
-                        $this->SetValue('Effect', $idx);
-                        $includeEffect = true;
-                    }
+                // Beim Setzen des Textes automatisch auf "Scrollingtext"-Effekt schalten
+                $effects = $this->GetEffectList();
+                $idx     = array_search('Scrollingtext', $effects, true);
+                if ($idx !== false) {
+                    $this->SetValue('Effect', $idx);
+                    $includeEffect = true;
                 }
                 break;
 
