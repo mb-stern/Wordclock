@@ -19,6 +19,13 @@ class Wordclock extends IPSModule
 
         // Ursprünglicher Effekt für Lauftext-Rückkehr
         $this->RegisterAttributeInteger('PreviousEffect', -1);
+
+        // Timer für Lauftext-Rückkehr (ms)
+        $this->RegisterTimer(
+            'ScrollingReset',
+            0,
+            'Wordclock_ScrollingReset($_IPS[\'TARGET\']);'
+        );
     }
 
     public function ApplyChanges()
@@ -28,8 +35,7 @@ class Wordclock extends IPSModule
         // Profile anlegen
         $this->EnsureProfiles();
 
-        // Timer für Lauftext-Rückkehr (ms)
-        $this->RegisterTimer('ScrollingReset', 0, 'Wordclock_ScrollingReset($_IPS[\'TARGET\']);');
+        // Variablen anlegen
 
         // Farbe (HexColor)
         $this->RegisterVariableInteger(
@@ -92,6 +98,7 @@ class Wordclock extends IPSModule
             'Wordclock.ScrollDuration',
             35
         );
+        $this->EnableAction('ScrollingDuration');
     }
 
     public function GetConfigurationForm()
@@ -237,7 +244,7 @@ class Wordclock extends IPSModule
                 $hsv = $this->RGBtoHSV($r, $g, $b); // h:0–360, s:0–100, v:0–255
 
                 $this->SetValue('Hue', (int)round($hsv['h']));
-                $this->SetValue('Sättigung', (int)round($hsv['s']));
+                $this->SetValue('Saturation', (int)round($hsv['s']));
 
                 $percent = (int)round(($hsv['v'] / 255.0) * 100.0);
                 if ($percent < 0) {
@@ -268,13 +275,17 @@ class Wordclock extends IPSModule
                 $sendText        = ' ' . $normalized; // 1 führendes Leerzeichen als Vorlauf
                 $scrollingTextTx = $sendText;
 
-                // aktuellen Effekt merken – aber nur, wenn noch keiner gespeichert ist
+                // aktuellen Effekt & PreviousEffect prüfen
                 $currentEffectIdx  = $this->GetValue('Effect');
                 $currentEffectName = $this->EffectIndexToName($currentEffectIdx);
 
                 $prev = $this->ReadAttributeInteger('PreviousEffect');
+
+                // Ursprünglichen Effekt nur dann merken, wenn noch keiner gespeichert ist
+                // und wir nicht schon im Scrollingtext sind
                 if ($prev < 0 && $currentEffectName !== 'Scrollingtext') {
                     $this->WriteAttributeInteger('PreviousEffect', $currentEffectIdx);
+                    $this->SendDebug('ScrollingText', 'PreviousEffect gesetzt auf ' . $currentEffectIdx, 0);
                 }
 
                 // auf Scrollingtext schalten, falls noch nicht aktiv
@@ -296,7 +307,11 @@ class Wordclock extends IPSModule
                     $duration = 0;
                 }
 
-                $this->SendDebug('ScrollingText', 'Duration=' . $duration . 's, PreviousEffect=' . $this->ReadAttributeInteger('PreviousEffect'), 0);
+                $this->SendDebug(
+                    'ScrollingText',
+                    'Duration=' . $duration . 's, StoredPreviousEffect=' . $this->ReadAttributeInteger('PreviousEffect'),
+                    0
+                );
 
                 if ($duration === 0) {
                     // unendlich: Timer aus
@@ -304,6 +319,25 @@ class Wordclock extends IPSModule
                 } else {
                     // Timer in ms
                     $this->SetTimerInterval('ScrollingReset', $duration * 1000);
+                }
+                break;
+
+            case 'ScrollingDuration':
+                $val = (int)$Value;
+                if ($val < 0) {
+                    $val = 0;
+                }
+                $this->SetValue('ScrollingDuration', $val);
+
+                // Wenn gerade Scrollingtext aktiv ist, Timer entsprechend anpassen
+                $currentEffectName = $this->EffectIndexToName($this->GetValue('Effect'));
+                if ($currentEffectName === 'Scrollingtext') {
+                    if ($val === 0) {
+                        // unendlich: Timer aus
+                        $this->SetTimerInterval('ScrollingReset', 0);
+                    } else {
+                        $this->SetTimerInterval('ScrollingReset', $val * 1000);
+                    }
                 }
                 break;
 
