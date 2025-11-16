@@ -79,14 +79,12 @@ Es wertet den Status der Uhr aus, stellt komfortable Steuervariablen bereit (Hel
 }
 ```
 
-## Befehle senden
+## PHP-Befehlsreferenz
 
-### Lauftext über Automation senden`
+| Wert | Name |
+|------|-------|
+| WCLOCK_ShowScrollingText(INSTANZ-ID, "Mein Lauftext!", 20); | Lauftexte für 20 Sekunden anzeigen |
 
-Beispiel eines Lauftextes welcher 20 Sekunden angezeigt werden soll
-```
-WCLOCK_ShowScrollingText(INSTANZ-ID, "Mein Lauftext!", 20);
-```
 
 ## Debug Log
 
