@@ -24,7 +24,7 @@ class Wordclock extends IPSModule
         $this->RegisterTimer(
             'ScrollingReset',
             0,
-            'Wordclock_ScrollingReset($_IPS[\'TARGET\']);'
+            'WCLOCK_ScrollingReset($_IPS[\'TARGET\']);'
         );
     }
 
