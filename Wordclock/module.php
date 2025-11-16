@@ -188,7 +188,8 @@ class Wordclock extends IPSModule
         // Änderung aus dem Modul (eine Zeile)
         $this->SendDebug('RequestAction', $Ident . '=' . json_encode($Value), 0);
 
-        $includeEffect = false;
+        $includeEffect   = false;
+        $scrollingTextTx = null;
 
         switch ($Ident) {
             case 'Brightness': // 0–100 %
@@ -242,20 +243,22 @@ class Wordclock extends IPSModule
                 $newText = (string)$Value;
                 $oldText = $this->GetValue('ScrollingText');
 
-                // Nur senden, wenn der Text sich wirklich geändert hat
                 if ($newText !== $oldText) {
                     $this->SetValue('ScrollingText', $newText);
-                    $this->SendScrollingText($newText);
+                    // Text analog Effect im normalen State-Payload mitsenden
+                    $scrollingTextTx = $newText;
+                } else {
+                    // nichts senden, wenn sich der Text nicht geändert hat
+                    return;
                 }
-                // kein normaler SendStateToWordclock, nur Text senden
-                return;
+                break;
 
             default:
                 throw new Exception('Invalid Ident');
         }
 
-        // Für alle anderen Änderungen normalen State senden
-        $this->SendStateToWordclock($includeEffect);
+        // Für alle Änderungen normalen State senden, ggf. inkl. Text
+        $this->SendStateToWordclock($includeEffect, $scrollingTextTx);
     }
 
     // Öffentliche Methode für Skripte:
@@ -267,11 +270,12 @@ class Wordclock extends IPSModule
         $oldText = $this->GetValue('ScrollingText');
         if ($text !== $oldText) {
             $this->SetValue('ScrollingText', $text);
-            $this->SendScrollingText($text);
+            // auch hier Text analog Effect über normalen State senden
+            $this->SendStateToWordclock(true, $text);
         }
     }
 
-    private function SendStateToWordclock(bool $includeEffect): void
+    private function SendStateToWordclock(bool $includeEffect, ?string $scrollingText = null): void
     {
         $baseTopic = rtrim($this->ReadPropertyString('Topic'), '/');
         if ($baseTopic === '') {
@@ -294,19 +298,19 @@ class Wordclock extends IPSModule
         $effectName = $this->EffectIndexToName($effectIdx);
 
         // TX: Werte der gesendeten Variablen
-        $this->SendDebug(
-            'SendState',
-            sprintf(
-                'Values: Brightness=%d%% (%d), Hue=%d, Saturation=%d, EffectIdx=%d, EffectName=%s',
-                $brightnessPercent,
-                $brightness255,
-                $h,
-                $s,
-                $effectIdx,
-                $effectName ?? 'null'
-            ),
-            0
+        $valuesLog = sprintf(
+            'Values: Brightness=%d%% (%d), Hue=%d, Saturation=%d, EffectIdx=%d, EffectName=%s',
+            $brightnessPercent,
+            $brightness255,
+            $h,
+            $s,
+            $effectIdx,
+            $effectName ?? 'null'
         );
+        if ($scrollingText !== null && $scrollingText !== '') {
+            $valuesLog .= ', ScrollingText="' . $scrollingText . '"';
+        }
+        $this->SendDebug('SendState', $valuesLog, 0);
 
         $payload = [
             'state'      => 'ON',
@@ -318,39 +322,14 @@ class Wordclock extends IPSModule
             $payload['effect'] = $effectName;
         }
 
+        if ($scrollingText !== null && $scrollingText !== '') {
+            $payload['scrolling_text'] = $scrollingText;
+        }
+
         $jsonPayload = json_encode($payload, JSON_UNESCAPED_SLASHES);
 
         // TX: Topic + Payload
         $this->SendDebug('SendState', 'Topic=' . $commandTopic . ', Payload=' . $jsonPayload, 0);
-
-        $mqttPacket = [
-            'DataID'           => '{043EA491-0325-4ADD-8FC2-A30C8EEB4D3F}', // TX
-            'PacketType'       => 3,
-            'QualityOfService' => 0,
-            'Retain'           => false,
-            'Topic'            => $commandTopic,
-            'Payload'          => $jsonPayload
-        ];
-
-        $this->SendDataToParent(json_encode($mqttPacket));
-    }
-
-    private function SendScrollingText(string $text): void
-    {
-        $baseTopic = rtrim($this->ReadPropertyString('Topic'), '/');
-        if ($baseTopic === '') {
-            return;
-        }
-        $commandTopic = $baseTopic . '/cmd';
-
-        $payload = [
-            'scrolling_text' => $text
-        ];
-
-        $jsonPayload = json_encode($payload, JSON_UNESCAPED_SLASHES);
-
-        // TX: nur für Text – Topic + Payload
-        $this->SendDebug('SendScrollingText', 'Topic=' . $commandTopic . ', Payload=' . $jsonPayload, 0);
 
         $mqttPacket = [
             'DataID'           => '{043EA491-0325-4ADD-8FC2-A30C8EEB4D3F}', // TX
