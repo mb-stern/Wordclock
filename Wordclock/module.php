@@ -241,16 +241,7 @@ class Wordclock extends IPSModule
 
             case 'ScrollingText':
                 $newText = (string)$Value;
-                $oldText = $this->GetValue('ScrollingText');
-
-                if ($newText !== $oldText) {
-                    $this->SetValue('ScrollingText', $newText);
-                    // Text analog Effect im normalen State-Payload mitsenden
-                    $scrollingTextTx = $newText;
-                } else {
-                    // nichts senden, wenn sich der Text nicht geändert hat
-                    return;
-                }
+                $this->SetValue('ScrollingText', $newText);
                 break;
 
             default:
