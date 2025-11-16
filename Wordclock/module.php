@@ -62,7 +62,7 @@ class Wordclock extends IPSModule
         $this->RegisterVariableInteger(
             'Saturation',
             'Sättigung',
-            'Wordclock.Saturation',
+            '~Intensity.100',
             25
         );
         $this->EnableAction('Saturation');
@@ -338,13 +338,6 @@ class Wordclock extends IPSModule
             IPS_SetVariableProfileValues($name, 0, 360, 1);
             IPS_SetVariableProfileText($name, '', '°');
             IPS_SetVariableProfileIcon($name, 'Bulb');
-        });
-
-        // Saturation: 0–100% (Integer)
-        $ensureProfile('Wordclock.Saturation', VARIABLETYPE_INTEGER, function (string $name) {
-            IPS_SetVariableProfileValues($name, 0, 100, 1);
-            IPS_SetVariableProfileText($name, '', '%');
-            IPS_SetVariableProfileIcon($name, 'Intensity');
         });
 
         // Effektprofil
