@@ -18,8 +18,8 @@ Es wertet den Status der Uhr aus, stellt komfortable Steuervariablen bereit (Hel
 1. Repository als Modul in IP-Symcon einbinden
 2. Instanz **Wordclock** anlegen
 3. Beim Anlegen der Instanz wird ebenfalls eine MQTT-Server Instanz angelegt, wenn noch keine besteht
-4. Basis-Topic konfigurieren
-5. MQTT-Server/Client als Parent verbinden
+4. MQTT-Server und Server-Socket mit der Wordclock-Instanz verbinden und konfigurieren
+5. Basis-Topic im Konfigurationsformular konfigurieren
 6. Die Wordclock muss danach allenfalls neu gestartet werden
 
 ## Konfigurationsformular
