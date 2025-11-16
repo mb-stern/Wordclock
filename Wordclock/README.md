@@ -104,7 +104,7 @@ Geloggte Infos:
 - Helligkeit wird nun in Prozent dargestellt.
 - Debug überarbeitet.
 - Nach Möglichkeit Symcon eigene Profile verwendet.
-- Zusätzlich Variable zur Eingabe des Lauftextes.
+- Lauftext mit Laufzeit.
 
 ### Version 1.0 (15.11.2025)
 - Initiale Version.
