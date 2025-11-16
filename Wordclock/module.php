@@ -240,30 +240,30 @@ class Wordclock extends IPSModule
                 break;
 
             case 'ScrollingText':
-                $newText = (string)$Value;
+            $newText = (string)$Value;
 
-                // Text in Variable speichern (ohne Tricks)
-                $this->SetValue('ScrollingText', $newText);
+            // Originaltext mit Umlauten in der Variable speichern
+            $this->SetValue('ScrollingText', $newText);
 
-                // Für die Uhr: vorne ein Leerzeichen als „Vorlauf“
-                // damit keine Buchstaben verschluckt werden
-                $sendText       = ' ' . $newText; // 3 führende Leerzeichen
-                $scrollingTextTx = $sendText;
+            // Für die Uhr: Umlaute „entschärfen“ und vorne ein Leerzeichen als Vorlauf
+            $normalized = $this->NormalizeScrollingText($newText);
+            $sendText   = ' ' . $normalized; // 1 führendes Leerzeichen
+            $scrollingTextTx = $sendText;
 
-                // Effekt nur dann auf "Scrollingtext" umschalten,
-                // wenn er noch nicht aktiv ist
-                $currentEffectIdx  = $this->GetValue('Effect');
-                $currentEffectName = $this->EffectIndexToName($currentEffectIdx);
+            // Effekt nur dann auf "Scrollingtext" umschalten,
+            // wenn er noch nicht aktiv ist
+            $currentEffectIdx  = $this->GetValue('Effect');
+            $currentEffectName = $this->EffectIndexToName($currentEffectIdx);
 
-                if ($currentEffectName !== 'Scrollingtext') {
-                    $effects = $this->GetEffectList();
-                    $idx     = array_search('Scrollingtext', $effects, true);
-                    if ($idx !== false) {
-                        $this->SetValue('Effect', $idx);
-                        $includeEffect = true;
-                    }
+            if ($currentEffectName !== 'Scrollingtext') {
+                $effects = $this->GetEffectList();
+                $idx     = array_search('Scrollingtext', $effects, true);
+                if ($idx !== false) {
+                    $this->SetValue('Effect', $idx);
+                    $includeEffect = true;
                 }
-                break;
+            }
+            break;
 
             default:
                 throw new Exception('Invalid Ident');
@@ -409,6 +409,26 @@ class Wordclock extends IPSModule
     {
         $effects = $this->GetEffectList();
         return $effects[$idx] ?? null;
+    }
+
+    private function NormalizeScrollingText(string $text): string
+    {
+        // deutsche Umlaute ersetzen
+        $map = [
+            'ä' => 'ae',
+            'Ä' => 'Ae',
+            'ö' => 'oe',
+            'Ö' => 'Oe',
+            'ü' => 'ue',
+            'Ü' => 'Ue',
+            'ß' => 'ss'
+        ];
+        $text = strtr($text, $map);
+
+        // optional: alle nicht druckbaren / nicht-ASCII Zeichen entfernen
+        $text = preg_replace('/[^\x20-\x7E]/', '', $text);
+
+        return $text;
     }
 
     private function RGBtoHSV(int $r, int $g, int $b): array
