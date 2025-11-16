@@ -221,7 +221,7 @@ class Wordclock extends IPSModule
                 break;
 
             case 'Saturation':
-                $this->SetValue('Sättigung', (int)$Value);
+                $this->SetValue('Saturation', (int)$Value);
                 break;
 
             case 'Color':
@@ -268,11 +268,16 @@ class Wordclock extends IPSModule
                 $sendText        = ' ' . $normalized; // 1 führendes Leerzeichen als Vorlauf
                 $scrollingTextTx = $sendText;
 
-                // aktuellen Effekt merken und auf Scrollingtext schalten
-                $currentEffectIdx = $this->GetValue('Effect');
-                $this->WriteAttributeInteger('PreviousEffect', $currentEffectIdx);
-
+                // aktuellen Effekt merken – aber nur, wenn noch keiner gespeichert ist
+                $currentEffectIdx  = $this->GetValue('Effect');
                 $currentEffectName = $this->EffectIndexToName($currentEffectIdx);
+
+                $prev = $this->ReadAttributeInteger('PreviousEffect');
+                if ($prev < 0 && $currentEffectName !== 'Scrollingtext') {
+                    $this->WriteAttributeInteger('PreviousEffect', $currentEffectIdx);
+                }
+
+                // auf Scrollingtext schalten, falls noch nicht aktiv
                 if ($currentEffectName !== 'Scrollingtext') {
                     $effects = $this->GetEffectList();
                     $idx     = array_search('Scrollingtext', $effects, true);
@@ -291,7 +296,7 @@ class Wordclock extends IPSModule
                     $duration = 0;
                 }
 
-                $this->SendDebug('ScrollingText', 'Duration=' . $duration . 's, PreviousEffect=' . $currentEffectIdx, 0);
+                $this->SendDebug('ScrollingText', 'Duration=' . $duration . 's, PreviousEffect=' . $this->ReadAttributeInteger('PreviousEffect'), 0);
 
                 if ($duration === 0) {
                     // unendlich: Timer aus
