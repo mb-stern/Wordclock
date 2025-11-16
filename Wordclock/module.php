@@ -248,7 +248,7 @@ class Wordclock extends IPSModule
                 // Für die Uhr: vorne ein paar Leerzeichen als „Vorlauf“
                 // damit keine Buchstaben verschluckt werden
                 $sendText       = '   ' . $newText; // 3 führende Leerzeichen
-                $scrollingTextTx = $sendText;
+                $scrollingTextTx = $newText;
 
                 // Effekt nur dann auf "Scrollingtext" umschalten,
                 // wenn er noch nicht aktiv ist
