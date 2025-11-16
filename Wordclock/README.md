@@ -35,24 +35,16 @@ Die Wordclock muss danach allenfalls neu gestartet werden.
 | Ident | Name | Typ | Profil | Beschreibung |
 |-------|------|------|---------|--------------|
 | `Color` | Farbe | Integer | `~HexColor` | Farbe |
-| `Brightness` | Helligkeit | Float | `Wordclock.Brightness` | 0–255 |
+| `Brightness` | Helligkeit | Float | `~Intensity.100` | 0–100% |
 | `Hue` | Farbton | Integer | `Wordclock.Hue` | 0–360° |
-| `Saturation` | Sättigung | Integer | `Wordclock.Saturation` | 0–100% |
+| `Saturation` | Sättigung | Integer | `~Intensity.100` | 0–100% |
 | `Effect` | Effekt | Integer | `Wordclock.Effect` | Effektliste |
 
 ## Variablenprofile
 
-### Wordclock.Brightness
-- Float 0–255  
-- Icon: Intensity
-
 ### Wordclock.Hue
 - Integer 0–360  
 - Icon: Bulb
-
-### Wordclock.Saturation
-- Integer 0–100  
-- Icon: Intensity
 
 ### Wordclock.Effect
 | Wert | Name |
@@ -98,7 +90,13 @@ Geloggte Infos:
 
 ## Versionen
 
-### Version 1.00 (15.11.2025)
+### Version 1.1 (16.11.2025)
+- Standard Topic auf ESPWordclock geändert, was dem Standard der Uhr entspricht.
+- Helligkeit wird nun in Prozent dargestellt.
+- Debug überarbeitet.
+- Nach Möglichkeit Symcon eigene Profile verwendet.
+
+### Version 1.0 (15.11.2025)
 - Initiale Version.
 
 ## Lizenz
