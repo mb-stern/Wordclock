@@ -39,6 +39,7 @@ Es wertet den Status der Uhr aus, stellt komfortable Steuervariablen bereit (Hel
 | `Saturation` | Sättigung | Integer | `~Intensity.100` | 0–100% |
 | `Effect` | Effekt | Integer | `Wordclock.Effect` | Effektliste |
 | `ScrollingText` | Lauftext| String | `~Textbox` | Eingabefeld |
+| `ScrollingDuration` | Lauftext Dauer | Integer | `Wordclock.ScrollDuration` | Dauer des Lauftextes |
 
 ## Variablenprofile
 
@@ -64,7 +65,7 @@ Es wertet den Status der Uhr aus, stellt komfortable Steuervariablen bereit (Hel
 ```json
 {
   "state": "ON",
-  "brightness": 150,
+  "brightness": 180,
   "color": { "h": 210, "s": 80 }
 }
 ```
@@ -73,11 +74,13 @@ Es wertet den Status der Uhr aus, stellt komfortable Steuervariablen bereit (Hel
 ```json
 {
   "state": "ON",
+  "effect": "Scrollingtext",
   "color": { "h": 210, "s": 80 },
-  "brightness": 150,
-  "effect": "Rainbow"
+  "brightness": 180,
+  "scrolling_text": " Hallo Symcon"
 }
 ```
+Andere Parameter sendet oder empfängt die Wordclock nicht.
 
 ## PHP-Befehlsreferenz
 
