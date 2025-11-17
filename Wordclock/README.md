@@ -59,6 +59,10 @@ Es wertet den Status der Uhr aus, stellt komfortable Steuervariablen bereit (Hel
 | 6 | Color |
 | 7 | Symbol |
 
+### Wordclock.ScrollDuration
+- Integer 0–600  
+- Icon: Clock
+
 ## MQTT Kommunikation
 
 ### Empfang: `<Topic>/status`
