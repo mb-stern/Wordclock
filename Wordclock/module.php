@@ -350,7 +350,7 @@ class Wordclock extends IPSModule
         $this->SendStateToWordclock($includeEffect, $scrollingTextTx);
     }
 
-    public function ShowScrollingText(string $text, int $duration = 0, ?int $color = null): void
+    public function ShowScrollingText(string $text, int $duration = 0, int $color = 0): void
     {
         if ($duration < 0) {
             $duration = 0;
@@ -361,8 +361,9 @@ class Wordclock extends IPSModule
             $this->SetValue('ScrollingDuration', $duration);
         }
 
-        // Optional: Farbe setzen (nur wenn != null)
-        if ($color !== null && @$this->GetIDForIdent('Color')) {
+        // Farbe nur ändern, wenn color != 0
+        // 0 bedeutet: kein Farbwechsel
+        if ($color !== 0 && @$this->GetIDForIdent('Color')) {
 
             // Ursprungsfarbe speichern (wenn nicht schon gespeichert)
             $prevColor = $this->ReadAttributeInteger('PreviousColor');
@@ -372,11 +373,11 @@ class Wordclock extends IPSModule
                 $this->SendDebug('ShowScrollingText', 'PreviousColor gesetzt auf ' . $currentColor, 0);
             }
 
-            // Neue Farbe setzen (über interne Logik)
+            // Neue Farbe setzen (über bestehende Logik in RequestAction)
             $this->RequestAction('Color', $color);
         }
 
-        // Text setzen
+        // Text setzen (startet/aktualisiert Timer über RequestAction('ScrollingText'))
         $this->RequestAction('ScrollingText', $text);
     }
 
