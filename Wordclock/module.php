@@ -361,21 +361,57 @@ class Wordclock extends IPSModule
             $this->SetValue('ScrollingDuration', $duration);
         }
 
-        // Optionale Farbe setzen
-        if ($color >= 0) {
+        // Optionale Farbe:
+        // -1  => keine Änderung
+        // >=0 => Farbe temporär setzen, Originalfarbe merken
+        if ($color >= 0 && @$this->GetIDForIdent('Color')) {
             // Ursprungsfarbe nur merken, wenn noch nicht gespeichert
             $prevColor = $this->ReadAttributeInteger('PreviousColor');
-            if ($prevColor < 0 && @$this->GetIDForIdent('Color')) {
+            if ($prevColor < 0) {
                 $currentColor = (int)$this->GetValue('Color');
                 $this->WriteAttributeInteger('PreviousColor', $currentColor);
                 $this->SendDebug('ShowScrollingText', 'PreviousColor gesetzt auf ' . $currentColor, 0);
             }
 
-            // Neue Farbe setzen (inkl. Anpassung von Hue/Saturation/Brightness,
-            // analog zum Fall "case Color" in RequestAction)
-            $colorInt = (int)$color;
+            // Neue Farbe setzen, inkl. Hue/Saturation/Brightness + State-Senden
+            // (nutzt die bestehende Logik im case 'Color')
+            $this->RequestAction('Color', $color);
+        }
+
+        // Text setzen -> startet/aktualisiert Timer basierend auf ScrollingDuration
+        $this->RequestAction('ScrollingText', $text);
+    }
+
+    public function ScrollingReset(): void
+    {
+        $this->SendDebug('ScrollingReset', 'Timer ausgelöst', 0);
+
+        // Timer stoppen
+        $this->SetTimerInterval('ScrollingReset', 0);
+
+        $prevEffect = $this->ReadAttributeInteger('PreviousEffect');
+        $prevColor  = $this->ReadAttributeInteger('PreviousColor');
+
+        $includeEffect = false;
+
+        // Ursprünglichen Effekt wiederherstellen (falls vorhanden)
+        if ($prevEffect >= 0) {
+            $this->SetValue('Effect', $prevEffect);
+            $this->WriteAttributeInteger('PreviousEffect', -1);
+            $includeEffect = true;
+            $this->SendDebug('ScrollingReset', 'Wechsele zurück zu EffektIdx=' . $prevEffect, 0);
+        } else {
+            $this->SendDebug('ScrollingReset', 'Kein PreviousEffect gesetzt', 0);
+        }
+
+        // Ursprüngliche Farbe wiederherstellen (falls vorhanden)
+        if ($prevColor >= 0 && @$this->GetIDForIdent('Color')) {
+            $this->SendDebug('ScrollingReset', 'Stelle PreviousColor wieder her: ' . $prevColor, 0);
+
+            $colorInt = $prevColor;
             $this->SetValue('Color', $colorInt);
 
+            // Hue/Saturation/Brightness passend zur ursprünglichen Farbe setzen
             $r = ($colorInt >> 16) & 0xFF;
             $g = ($colorInt >> 8) & 0xFF;
             $b = $colorInt & 0xFF;
@@ -392,33 +428,14 @@ class Wordclock extends IPSModule
                 $percent = 100;
             }
             $this->SetValue('Brightness', $percent);
+
+            $this->WriteAttributeInteger('PreviousColor', -1);
+        } else {
+            $this->SendDebug('ScrollingReset', 'Keine PreviousColor gesetzt', 0);
         }
 
-        // Text setzen -> startet/aktualisiert Timer basierend auf ScrollingDuration
-        $this->RequestAction('ScrollingText', $text);
-    }
-
-    public function ScrollingReset(): void
-    {
-        $this->SendDebug('ScrollingReset', 'Timer ausgelöst', 0);
-
-        // Timer stoppen
-        $this->SetTimerInterval('ScrollingReset', 0);
-
-        $prev = $this->ReadAttributeInteger('PreviousEffect');
-        if ($prev < 0) {
-            $this->SendDebug('ScrollingReset', 'Kein PreviousEffect gesetzt, Abbruch', 0);
-            return;
-        }
-
-        // ursprünglichen Effekt wiederherstellen
-        $this->SetValue('Effect', $prev);
-        $this->WriteAttributeInteger('PreviousEffect', -1);
-
-        $this->SendDebug('ScrollingReset', 'Wechsele zurück zu EffektIdx=' . $prev, 0);
-
-        // State mit neuem Effekt zur Uhr senden (ohne neuen scrolling_text)
-        $this->SendStateToWordclock(true, '');
+        // State mit ggf. neuem Effekt und wiederhergestellter Farbe senden (ohne scrolling_text)
+        $this->SendStateToWordclock($includeEffect, '');
     }
 
     private function SendStateToWordclock(bool $includeEffect, string $scrollingText = ''): void
