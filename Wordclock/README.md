@@ -96,6 +96,7 @@ Andere Parameter sendet oder empfängt die Wordclock nicht.
 
 
 | Farbe | Hex |
+|------|-------|
 | Rot | #FF0000 |
 | Grün | #00FF00 |
 | Blau | #0000FF |
