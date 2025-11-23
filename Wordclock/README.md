@@ -90,8 +90,21 @@ Andere Parameter sendet oder empfängt die Wordclock nicht.
 
 | Wert | Name |
 |------|-------|
-| WCLOCK_ShowScrollingText(12345, "Mein Lauftext!", 20); | Lauftext für 20 Sekunden anzeigen |
+| WCLOCK_ShowScrollingText(12345, "Mein Lauftext!", 20, "#FFFFFF"); | Lauftext für 20 Sekunden in Weiss anzeigen |
+| WCLOCK_ShowScrollingText(12345, "Mein Lauftext!", 30, "#FF0000"); | Lauftext für 30 Sekunden in Rot anzeigen |
+| WCLOCK_ShowScrollingText(12345, "Mein Lauftext!", 40, ""); | Lauftext für 40 Sekunden ohne Farbänderung anzeigen |
 
+
+| Farbe | Hex |
+|------|-------|
+| Rot | #FF0000 |
+| Grün | #00FF00 |
+| Blau | #0000FF |
+| Gelb | #FFFF00 |
+| Weiss | #FFFFFF |
+| Pink | #FF00FF |
+
+Die Farbe wird im Hex-Format eingegeben. Weitere Farben: https://htmlcolorcodes.com/
 
 ## Debug Log
 
@@ -103,6 +116,9 @@ Geloggte Infos:
 - RGB/HSV Berechnungen
 
 ## Versionen
+
+### Version 1.2 (23.11.2025)
+- Lauftext jetzt mit Farbangabe in Hex.
 
 ### Version 1.1 (16.11.2025)
 - Standard Topic auf ESPWordclock geändert, was dem Standard der Uhr entspricht.
