@@ -20,6 +20,9 @@ class Wordclock extends IPSModule
         // Ursprünglicher Effekt für Lauftext-Rückkehr
         $this->RegisterAttributeInteger('PreviousEffect', -1);
 
+        // Ursprüngliche Farbe für Lauftext-Rückkehr
+        $this->RegisterAttributeInteger('PreviousColor', -1);
+
         // Timer für Lauftext-Rückkehr (ms)
         $this->RegisterTimer('ScrollingReset', 0, 'WCLOCK_ScrollingReset($_IPS[\'TARGET\']);');
     }
@@ -347,7 +350,7 @@ class Wordclock extends IPSModule
         $this->SendStateToWordclock($includeEffect, $scrollingTextTx);
     }
 
-    public function ShowScrollingText(string $text, int $duration = 0): void
+    public function ShowScrollingText(string $text, int $duration = 0, int $color = -1): void
     {
         if ($duration < 0) {
             $duration = 0;
@@ -356,6 +359,39 @@ class Wordclock extends IPSModule
         // Dauer im Modul setzen (wird von RequestAction ausgewertet)
         if (@$this->GetIDForIdent('ScrollingDuration')) {
             $this->SetValue('ScrollingDuration', $duration);
+        }
+
+        // Optionale Farbe setzen
+        if ($color >= 0) {
+            // Ursprungsfarbe nur merken, wenn noch nicht gespeichert
+            $prevColor = $this->ReadAttributeInteger('PreviousColor');
+            if ($prevColor < 0 && @$this->GetIDForIdent('Color')) {
+                $currentColor = (int)$this->GetValue('Color');
+                $this->WriteAttributeInteger('PreviousColor', $currentColor);
+                $this->SendDebug('ShowScrollingText', 'PreviousColor gesetzt auf ' . $currentColor, 0);
+            }
+
+            // Neue Farbe setzen (inkl. Anpassung von Hue/Saturation/Brightness,
+            // analog zum Fall "case Color" in RequestAction)
+            $colorInt = (int)$color;
+            $this->SetValue('Color', $colorInt);
+
+            $r = ($colorInt >> 16) & 0xFF;
+            $g = ($colorInt >> 8) & 0xFF;
+            $b = $colorInt & 0xFF;
+
+            $hsv = $this->RGBtoHSV($r, $g, $b); // h:0–360, s:0–100, v:0–255
+
+            $this->SetValue('Hue', (int)round($hsv['h']));
+            $this->SetValue('Saturation', (int)round($hsv['s']));
+
+            $percent = (int)round(($hsv['v'] / 255.0) * 100.0);
+            if ($percent < 0) {
+                $percent = 0;
+            } elseif ($percent > 100) {
+                $percent = 100;
+            }
+            $this->SetValue('Brightness', $percent);
         }
 
         // Text setzen -> startet/aktualisiert Timer basierend auf ScrollingDuration
