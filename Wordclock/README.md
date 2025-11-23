@@ -91,9 +91,10 @@ Andere Parameter sendet oder empfängt die Wordclock nicht.
 | Wert | Name |
 |------|-------|
 | WCLOCK_ShowScrollingText(12345, "Mein Lauftext!", 20, "#FFFFFF"); | Lauftext für 20 Sekunden in Weiss anzeigen |
-| WCLOCK_ShowScrollingText(12345, "Mein Lauftext!", 20, "#FF0000"); | Lauftext für 20 Sekunden in Rot anzeigen |
-| WCLOCK_ShowScrollingText(12345, "Mein Lauftext!", 20, ""); | Lauftext für 20 Sekunden ohne Farbänderung anzeigen |
+| WCLOCK_ShowScrollingText(12345, "Mein Lauftext!", 30, "#FF0000"); | Lauftext für 30 Sekunden in Rot anzeigen |
+| WCLOCK_ShowScrollingText(12345, "Mein Lauftext!", 40, ""); | Lauftext für 40 Sekunden ohne Farbänderung anzeigen |
 
+Die Farbe wird im Hex-Format eingegen. Beispiel einer Farbtabelle: https://htmlcolorcodes.com/
 
 ## Debug Log
 
