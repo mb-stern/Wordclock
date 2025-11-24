@@ -90,7 +90,9 @@ Andere Parameter sendet oder empfängt die Wordclock nicht.
 
 Lauftext für 20 Sekunden in Weiss anzeigen
 
-{WCLOCK_ShowScrollingText(12345, "Mein Lauftext!", 20, "#FFFFFF");}
+{
+  WCLOCK_ShowScrollingText(12345, "Mein Lauftext!", 20, "#FFFFFF");
+}
 
 Lauftext für 30 Sekunden in Rot anzeigen
 {WCLOCK_ShowScrollingText(12345, "Mein Lauftext!", 30, "#FF0000");}
