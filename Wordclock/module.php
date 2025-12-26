@@ -24,13 +24,8 @@ class Wordclock extends IPSModuleStrict
     
     public function GetCompatibleParents(): string
     {
-        return json_encode([
-            'type' => 'require',
-            'moduleIDs' => [
-            // MQTT-Server
-            '{C6D2AEB3-6E1F-4B2E-8E69-3A1A00246850}'
-            ]
-        ]);
+        // MQTT-Server
+        '{C6D2AEB3-6E1F-4B2E-8E69-3A1A00246850}' 
     }
 
     public function ApplyChanges(): void
