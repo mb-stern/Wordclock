@@ -29,7 +29,7 @@ class Wordclock extends IPSModuleStrict
     public function GetCompatibleParents(): string
     {
         $json = json_encode([
-            'type'      => 'require',
+            'type'      => 'connect',
             'moduleIDs' => [
                 // MQTT-Server (Splitter)
                 '{C6D2AEB3-6E1F-4B2E-8E69-3A1A00246850}'
@@ -136,12 +136,10 @@ class Wordclock extends IPSModuleStrict
             return '';
         }
 
-        /*
         // RX-DataID des MQTT-Splitters prüfen
         if (!isset($data['DataID']) || $data['DataID'] !== '{7F7632D9-FA40-4F38-8DEA-C83CD4325A32}') {
             return '';
         }
-            */
 
         // Basis-Topic holen und /status anhängen
         $baseTopic = rtrim($this->ReadPropertyString('Topic'), '/');
