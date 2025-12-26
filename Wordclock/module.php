@@ -141,17 +141,20 @@ class Wordclock extends IPSModuleStrict
             return '';
         }
 
-        $this->SendDebug('ReceiveData', 'DataID=' . ($data['DataID'] ?? 'n/a'), 0);
+        // Debug: DataID/Topic immer einmal ausgeben
+        $this->SendDebug('ReceiveData', 'DataID=' . ($data['DataID'] ?? 'n/a') . ', Topic=' . ($data['Topic'] ?? 'n/a'), 0);
 
         // Basis-Topic holen und /status anhängen
         $baseTopic = rtrim($this->ReadPropertyString('Topic'), '/');
         if ($baseTopic === '') {
+            $this->SendDebug('ReceiveData', 'Abort: Topic-Property leer', 0);
             return '';
         }
         $statusTopic = $baseTopic . '/status';
 
         // Nur Status-Topic der Wordclock verarbeiten
         if (!isset($data['Topic']) || $data['Topic'] !== $statusTopic) {
+            $this->SendDebug('ReceiveData', 'Abort: Topic mismatch. Expect=' . $statusTopic, 0);
             return '';
         }
 
@@ -159,34 +162,41 @@ class Wordclock extends IPSModuleStrict
         $now  = time();
         $last = $this->ReadAttributeInteger('LastParseTS');
         if (($now - $last) < 1) {
+            $this->SendDebug('ReceiveData', 'Abort: Throttle (' . ($now - $last) . 's)', 0);
             return '';
         }
         $this->WriteAttributeInteger('LastParseTS', $now);
 
         if (!isset($data['Payload'])) {
+            $this->SendDebug('ReceiveData', 'Abort: Payload fehlt', 0);
             return '';
         }
 
-        // --- Payload lesen (HEX aus Datenfluss) ---
-        $payloadHex = (string)$data['Payload'];
-        $payloadHexTrim = trim($payloadHex);
-        if ($payloadHexTrim === '') {
+        $payloadHex = trim((string)$data['Payload']);
+        if ($payloadHex === '') {
+            $this->SendDebug('ReceiveData', 'Abort: Payload leer', 0);
             return '';
         }
 
-        // HEX -> BIN (decoded JSON-String)
-        $payloadBin = (ctype_xdigit($payloadHexTrim) && (strlen($payloadHexTrim) % 2 === 0)) ? hex2bin($payloadHexTrim) : false;
-        $payloadJson = ($payloadBin === false) ? $payloadHexTrim : $payloadBin;
+        // HEX -> JSON-String
+        $payloadBin = (ctype_xdigit($payloadHex) && (strlen($payloadHex) % 2 === 0)) ? hex2bin($payloadHex) : false;
+        if ($payloadBin === false) {
+            $this->SendDebug('ReceiveData', 'WARN: Payload ist nicht gueltiges HEX (oder odd length). Nutze raw.', 0);
+            $payloadJson = $payloadHex;
+        } else {
+            $payloadJson = $payloadBin;
+        }
 
-        // Debug: Roh-HEX + decoded JSON (eine Zeile)
-        $this->SendDebug('ReceiveData', 'Topic=' . $data['Topic'] . ', Payload(HEX)=' . $payloadHexTrim, 0);
+        // Debug: HEX + decoded
+        $this->SendDebug('ReceiveData', 'Payload(HEX)=' . $payloadHex, 0);
         $this->SendDebug('ReceiveData', 'Payload(decoded)=' . $payloadJson, 0);
 
-        // Debug: optional pretty (nur wenn JSON gültig)
         $state = json_decode($payloadJson, true);
         if (!is_array($state)) {
-            $this->SendDebug('ReceiveData', 'JSON decode failed', 0);
+            $this->SendDebug('ReceiveData', 'Abort: JSON decode failed: ' . json_last_error_msg(), 0);
             return '';
+        }
+
         }
         $pretty = json_encode($state, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);
         if ($pretty !== false) {
