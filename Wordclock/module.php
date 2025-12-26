@@ -1,10 +1,14 @@
 <?php
+declare(strict_types=1);
 
 class Wordclock extends IPSModuleStrict
 {
     public function Create(): void
     {
         parent::Create();
+
+        // MQTT-Parent verbinden
+        //$this->ConnectParent('{C6D2AEB3-6E1F-4B2E-8E69-3A1A00246850}');
 
         // Eigenschaften
         $this->RegisterPropertyString('Topic', 'ESPWordclock');
@@ -21,7 +25,7 @@ class Wordclock extends IPSModuleStrict
         // Timer für Lauftext-Rückkehr (ms)
         $this->RegisterTimer('ScrollingReset', 0, 'WCLOCK_ScrollingReset($_IPS[\'TARGET\']);');
     }
-    
+
     public function GetCompatibleParents(): string
     {
         $json = json_encode([
@@ -39,15 +43,6 @@ class Wordclock extends IPSModuleStrict
     {
         parent::ApplyChanges();
 
-        // NUR Status-Topic empfangen (wichtig!)
-        $baseTopic = rtrim($this->ReadPropertyString('Topic'), '/');
-        if ($baseTopic !== '') {
-            $statusTopic = preg_quote($baseTopic . '/status', '/');
-            $this->SetReceiveDataFilter('.*' . $statusTopic . '.*');
-        } else {
-            $this->SetReceiveDataFilter('.*');
-        }
-        
         // Profile anlegen
         $this->EnsureProfiles();
 
@@ -141,20 +136,20 @@ class Wordclock extends IPSModuleStrict
             return '';
         }
 
-        // Debug: DataID/Topic immer einmal ausgeben
-        $this->SendDebug('ReceiveData', 'DataID=' . ($data['DataID'] ?? 'n/a') . ', Topic=' . ($data['Topic'] ?? 'n/a'), 0);
+        // RX-DataID des MQTT-Splitters prüfen
+        if (!isset($data['DataID']) || $data['DataID'] !== '{7F7632D9-FA40-4F38-8DEA-C83CD4325A32}') {
+            return '';
+        }
 
         // Basis-Topic holen und /status anhängen
         $baseTopic = rtrim($this->ReadPropertyString('Topic'), '/');
         if ($baseTopic === '') {
-            $this->SendDebug('ReceiveData', 'Abort: Topic-Property leer', 0);
             return '';
         }
         $statusTopic = $baseTopic . '/status';
 
         // Nur Status-Topic der Wordclock verarbeiten
         if (!isset($data['Topic']) || $data['Topic'] !== $statusTopic) {
-            $this->SendDebug('ReceiveData', 'Abort: Topic mismatch. Expect=' . $statusTopic, 0);
             return '';
         }
 
@@ -162,44 +157,35 @@ class Wordclock extends IPSModuleStrict
         $now  = time();
         $last = $this->ReadAttributeInteger('LastParseTS');
         if (($now - $last) < 1) {
-            $this->SendDebug('ReceiveData', 'Abort: Throttle (' . ($now - $last) . 's)', 0);
             return '';
         }
         $this->WriteAttributeInteger('LastParseTS', $now);
 
         if (!isset($data['Payload'])) {
-            $this->SendDebug('ReceiveData', 'Abort: Payload fehlt', 0);
             return '';
         }
 
-        $payloadHex = trim((string)$data['Payload']);
-        if ($payloadHex === '') {
-            $this->SendDebug('ReceiveData', 'Abort: Payload leer', 0);
+        $payloadHex = (string)$data['Payload'];
+        if (trim($payloadHex) === '') {
             return '';
         }
 
-        // HEX -> JSON-String
+        // RX Debug: wir loggen weiterhin HEX, aber decodieren für die Verarbeitung
+        $this->SendDebug('ReceiveData', 'Topic=' . $data['Topic'] . ', Payload=' . $payloadHex, 0);
+
+        // HEX -> BIN -> String
         $payloadBin = (ctype_xdigit($payloadHex) && (strlen($payloadHex) % 2 === 0)) ? hex2bin($payloadHex) : false;
         if ($payloadBin === false) {
-            $this->SendDebug('ReceiveData', 'WARN: Payload ist nicht gueltiges HEX (oder odd length). Nutze raw.', 0);
+            // Fallback: falls doch mal Klartext kommt
             $payloadJson = $payloadHex;
         } else {
             $payloadJson = $payloadBin;
         }
 
-        // Debug: HEX + decoded
-        $this->SendDebug('ReceiveData', 'Payload(HEX)=' . $payloadHex, 0);
-        $this->SendDebug('ReceiveData', 'Payload(decoded)=' . $payloadJson, 0);
-
         $state = json_decode($payloadJson, true);
         if (!is_array($state)) {
-            $this->SendDebug('ReceiveData', 'Abort: JSON decode failed: ' . json_last_error_msg(), 0);
+            $this->SendDebug('ReceiveData', 'JSON decode failed after HEX2BIN. Decoded=' . (string)$payloadJson, 0);
             return '';
-        }
-
-        $pretty = json_encode($state, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);
-        if ($pretty !== false) {
-            $this->SendDebug('ReceiveData', "Payload(pretty)\n" . $pretty, 0);
         }
 
         $h    = null;
@@ -546,17 +532,16 @@ class Wordclock extends IPSModuleStrict
             'QualityOfService' => 0,
             'Retain'           => false,
             'Topic'            => $commandTopic,
-            'Payload'          => bin2hex($jsonPayload)
+            'Payload' => bin2hex($jsonPayload)
         ];
 
-        $packetJson = json_encode($mqttPacket, JSON_UNESCAPED_SLASHES);
-        if ($packetJson === false) {
+        $packet = json_encode($mqttPacket);
+        if ($packet === false) {
             $this->SendDebug('SendState', 'json_encode mqttPacket fehlgeschlagen', 0);
             return;
         }
 
-        // Datenfluss ist binär -> wir schicken BIN (nicht HEX-String)
-        $this->SendDataToParent($packetJson);                       
+        $this->SendDataToParent($packet);
     }
 
     private function NormalizeScrollingText(string $text): string
