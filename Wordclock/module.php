@@ -7,8 +7,6 @@ class Wordclock extends IPSModuleStrict
     {
         parent::Create();
 
-        IPS_LogMessage('Wordclock', 'Create() InstanceID=' . $this->InstanceID);
-
         // MQTT-Parent verbinden
         //$this->ConnectParent('{C6D2AEB3-6E1F-4B2E-8E69-3A1A00246850}');
 
@@ -45,17 +43,7 @@ class Wordclock extends IPSModuleStrict
     {
         parent::ApplyChanges();
 
-        IPS_LogMessage('Wordclock', 'ApplyChanges() InstanceID=' . $this->InstanceID);
-
-        $baseTopic = rtrim($this->ReadPropertyString('Topic'), '/');
-        if ($baseTopic !== '') {
-            $statusTopic = preg_quote($baseTopic . '/status', '/');
-            $this->SetReceiveDataFilter('.*' . $statusTopic . '.*');
-        } else {
-            $this->SetReceiveDataFilter('.*');
-        }
-
-        // danach wie gehabt
+        // Profile anlegen
         $this->EnsureProfiles();
 
         // Variablen anlegen
@@ -143,14 +131,15 @@ class Wordclock extends IPSModuleStrict
 
     public function ReceiveData(string $JSONString): string
     {
-        IPS_LogMessage('Wordclock', 'ReceiveData() called InstanceID=' . $this->InstanceID . ' RawLen=' . strlen($JSONString));
-
         $data = json_decode($JSONString, true);
         if (!is_array($data)) {
             return '';
         }
 
-        $this->SendDebug('ReceiveData', 'DataID=' . ($data['DataID'] ?? 'n/a'), 0);
+        // RX-DataID des MQTT-Splitters prüfen
+        if (!isset($data['DataID']) || $data['DataID'] !== '{7F7632D9-FA40-4F38-8DEA-C83CD4325A32}') {
+            return '';
+        }
 
         // Basis-Topic holen und /status anhängen
         $baseTopic = rtrim($this->ReadPropertyString('Topic'), '/');
@@ -481,8 +470,6 @@ class Wordclock extends IPSModuleStrict
 
     private function SendStateToWordclock(bool $includeEffect, string $scrollingText = ''): void
     {
-        IPS_LogMessage('Wordclock', 'SendStateToWordclock() Topic=' . $commandTopic);
-
         $baseTopic = rtrim($this->ReadPropertyString('Topic'), '/');
         if ($baseTopic === '') {
             return;
@@ -545,7 +532,7 @@ class Wordclock extends IPSModuleStrict
             'QualityOfService' => 0,
             'Retain'           => false,
             'Topic'            => $commandTopic,
-            'Payload' => bin2hex($jsonPayload)
+            'Payload'           => bin2hex($jsonPayload)
         ];
 
         $packet = json_encode($mqttPacket);
@@ -554,9 +541,7 @@ class Wordclock extends IPSModuleStrict
             return;
         }
 
-        $this->SendDebug('SendState', 'TX packet=' . $packet, 0);
         $this->SendDataToParent($packet);
-        $this->SendDebug('SendState', 'SendDataToParent() called', 0);
     }
 
     private function NormalizeScrollingText(string $text): string
