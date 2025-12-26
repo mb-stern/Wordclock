@@ -116,7 +116,7 @@ class Wordclock extends IPSModuleStrict
 
     public function ReceiveData(string $JSONString): string
     {
-        $data = json_decode($JSONString, true);
+        $data = json_decode($JSONString);
         if (!is_array($data)) {
             return;
         }
