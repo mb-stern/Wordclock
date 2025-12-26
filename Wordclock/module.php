@@ -43,7 +43,15 @@ class Wordclock extends IPSModuleStrict
     {
         parent::ApplyChanges();
 
-        // Profile anlegen
+        $baseTopic = rtrim($this->ReadPropertyString('Topic'), '/');
+        if ($baseTopic !== '') {
+            $statusTopic = preg_quote($baseTopic . '/status', '/');
+            $this->SetReceiveDataFilter('.*' . $statusTopic . '.*');
+        } else {
+            $this->SetReceiveDataFilter('.*');
+        }
+
+        // danach wie gehabt
         $this->EnsureProfiles();
 
         // Variablen anlegen
@@ -136,10 +144,7 @@ class Wordclock extends IPSModuleStrict
             return '';
         }
 
-        // RX-DataID des MQTT-Splitters prüfen
-        if (!isset($data['DataID']) || $data['DataID'] !== '{7F7632D9-FA40-4F38-8DEA-C83CD4325A32}') {
-            return '';
-        }
+        $this->SendDebug('ReceiveData', 'DataID=' . ($data['DataID'] ?? 'n/a'), 0);
 
         // Basis-Topic holen und /status anhängen
         $baseTopic = rtrim($this->ReadPropertyString('Topic'), '/');
@@ -541,7 +546,9 @@ class Wordclock extends IPSModuleStrict
             return;
         }
 
+        $this->SendDebug('SendState', 'TX packet=' . $packet, 0);
         $this->SendDataToParent($packet);
+        $this->SendDebug('SendState', 'SendDataToParent() called', 0);
     }
 
     private function NormalizeScrollingText(string $text): string
