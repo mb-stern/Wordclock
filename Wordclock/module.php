@@ -161,27 +161,30 @@ class Wordclock extends IPSModuleStrict
             return '';
         }
 
+        // --- Payload lesen (HEX aus Datenfluss) ---
         $payloadHex = (string)$data['Payload'];
-        if (trim($payloadHex) === '') {
+        $payloadHexTrim = trim($payloadHex);
+        if ($payloadHexTrim === '') {
             return '';
         }
 
-        // RX Debug: wir loggen weiterhin HEX, aber decodieren für die Verarbeitung
-        $this->SendDebug('ReceiveData', 'Topic=' . $data['Topic'] . ', Payload=' . $payloadHex, 0);
+        // HEX -> BIN (decoded JSON-String)
+        $payloadBin = (ctype_xdigit($payloadHexTrim) && (strlen($payloadHexTrim) % 2 === 0)) ? hex2bin($payloadHexTrim) : false;
+        $payloadJson = ($payloadBin === false) ? $payloadHexTrim : $payloadBin;
 
-        // HEX -> BIN -> String
-        $payloadBin = (ctype_xdigit($payloadHex) && (strlen($payloadHex) % 2 === 0)) ? hex2bin($payloadHex) : false;
-        if ($payloadBin === false) {
-            // Fallback: falls doch mal Klartext kommt
-            $payloadJson = $payloadHex;
-        } else {
-            $payloadJson = $payloadBin;
-        }
+        // Debug: Roh-HEX + decoded JSON (eine Zeile)
+        $this->SendDebug('ReceiveData', 'Topic=' . $data['Topic'] . ', Payload(HEX)=' . $payloadHexTrim, 0);
+        $this->SendDebug('ReceiveData', 'Payload(decoded)=' . $payloadJson, 0);
 
+        // Debug: optional pretty (nur wenn JSON gültig)
         $state = json_decode($payloadJson, true);
         if (!is_array($state)) {
-            $this->SendDebug('ReceiveData', 'JSON decode failed after HEX2BIN. Decoded=' . (string)$payloadJson, 0);
+            $this->SendDebug('ReceiveData', 'JSON decode failed', 0);
             return '';
+        }
+        $pretty = json_encode($state, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);
+        if ($pretty !== false) {
+            $this->SendDebug('ReceiveData', "Payload(pretty)\n" . $pretty, 0);
         }
 
         $h    = null;
