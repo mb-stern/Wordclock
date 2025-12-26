@@ -7,6 +7,8 @@ class Wordclock extends IPSModuleStrict
     {
         parent::Create();
 
+        IPS_LogMessage('Wordclock', 'Create() InstanceID=' . $this->InstanceID);
+
         // MQTT-Parent verbinden
         //$this->ConnectParent('{C6D2AEB3-6E1F-4B2E-8E69-3A1A00246850}');
 
@@ -42,6 +44,8 @@ class Wordclock extends IPSModuleStrict
     public function ApplyChanges(): void
     {
         parent::ApplyChanges();
+
+        IPS_LogMessage('Wordclock', 'ApplyChanges() InstanceID=' . $this->InstanceID);
 
         $baseTopic = rtrim($this->ReadPropertyString('Topic'), '/');
         if ($baseTopic !== '') {
@@ -139,6 +143,8 @@ class Wordclock extends IPSModuleStrict
 
     public function ReceiveData(string $JSONString): string
     {
+        IPS_LogMessage('Wordclock', 'ReceiveData() called InstanceID=' . $this->InstanceID . ' RawLen=' . strlen($JSONString));
+
         $data = json_decode($JSONString, true);
         if (!is_array($data)) {
             return '';
@@ -475,6 +481,8 @@ class Wordclock extends IPSModuleStrict
 
     private function SendStateToWordclock(bool $includeEffect, string $scrollingText = ''): void
     {
+        IPS_LogMessage('Wordclock', 'SendStateToWordclock() Topic=' . $commandTopic);
+
         $baseTopic = rtrim($this->ReadPropertyString('Topic'), '/');
         if ($baseTopic === '') {
             return;
