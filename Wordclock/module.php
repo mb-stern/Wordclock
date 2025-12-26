@@ -6,9 +6,6 @@ class Wordclock extends IPSModuleStrict
     {
         parent::Create();
 
-        // MQTT-Parent verbinden
-        //$this->ConnectParent('{C6D2AEB3-6E1F-4B2E-8E69-3A1A00246850}');
-
         // Eigenschaften
         $this->RegisterPropertyString('Topic', 'ESPWordclock');
 
@@ -98,7 +95,7 @@ class Wordclock extends IPSModuleStrict
         $this->EnableAction('ScrollingDuration');
     }
 
-    public function GetConfigurationForm()
+    public function GetConfigurationForm(): string
     {
         $form = [
             'elements' => [
@@ -111,48 +108,49 @@ class Wordclock extends IPSModuleStrict
             ]
         ];
 
-        return json_encode($form);
+        $json = json_encode($form);
+        return ($json !== false) ? $json : '{}';
     }
 
     public function ReceiveData(string $JSONString): string
     {
-        $data = json_decode($JSONString);
+        $data = json_decode($JSONString, true);
         if (!is_array($data)) {
-            return;
+            return '';
         }
 
         // RX-DataID des MQTT-Splitters prüfen
         if (!isset($data['DataID']) || $data['DataID'] !== '{7F7632D9-FA40-4F38-8DEA-C83CD4325A32}') {
-            return;
+            return '';
         }
 
         // Basis-Topic holen und /status anhängen
         $baseTopic = rtrim($this->ReadPropertyString('Topic'), '/');
         if ($baseTopic === '') {
-            return;
+            return '';
         }
         $statusTopic = $baseTopic . '/status';
 
         // Nur Status-Topic der Wordclock verarbeiten
         if (!isset($data['Topic']) || $data['Topic'] !== $statusTopic) {
-            return;
+            return '';
         }
 
         // Throttle: max. 1x/s
         $now  = time();
         $last = $this->ReadAttributeInteger('LastParseTS');
         if (($now - $last) < 1) {
-            return;
+            return '';
         }
         $this->WriteAttributeInteger('LastParseTS', $now);
 
         if (!isset($data['Payload'])) {
-            return;
+            return '';
         }
 
         $json = (string)$data['Payload'];
         if (trim($json) === '') {
-            return;
+            return '';
         }
 
         // RX: eine Zeile mit Topic + Payload
@@ -160,7 +158,7 @@ class Wordclock extends IPSModuleStrict
 
         $state = json_decode($json, true);
         if (!is_array($state)) {
-            return;
+            return '';
         }
 
         $h    = null;
@@ -195,13 +193,16 @@ class Wordclock extends IPSModuleStrict
 
         // RGB-Wert für ~HexColor berechnen, wenn alle drei Werte da sind
         if ($h !== null && $s !== null && $v255 !== null) {
-            $rgb = $this->HSVtoRGB($h, $s, $v255);  // h:0–360, s:0–100, v:0–255
+            $rgb = $this->HSVtoRGB((float)$h, (float)$s, (float)$v255);  // h:0–360, s:0–100, v:0–255
             $colorInt = ($rgb['r'] << 16) | ($rgb['g'] << 8) | $rgb['b'];
             $this->SetValueIntegerIfChanged('Color', $colorInt);
         }
+
+        // Optionaler Return an Parent (meist leer)
+        return '';
     }
 
-    public function RequestAction($Ident, $Value)
+    public function RequestAction(string $Ident, mixed $Value): void
     {
         // Änderung aus dem Modul (eine Zeile)
         $this->SendDebug('RequestAction', $Ident . '=' . json_encode($Value), 0);
@@ -273,7 +274,7 @@ class Wordclock extends IPSModuleStrict
                 $scrollingTextTx = $sendText;
 
                 // aktuellen Effekt & PreviousEffect prüfen
-                $currentEffectIdx  = $this->GetValue('Effect');
+                $currentEffectIdx  = (int)$this->GetValue('Effect');
                 $currentEffectName = $this->EffectIndexToName($currentEffectIdx);
 
                 $prev = $this->ReadAttributeInteger('PreviousEffect');
@@ -290,7 +291,7 @@ class Wordclock extends IPSModuleStrict
                     $effects = $this->GetEffectList();
                     $idx     = array_search('Scrollingtext', $effects, true);
                     if ($idx !== false) {
-                        $this->SetValue('Effect', $idx);
+                        $this->SetValue('Effect', (int)$idx);
                         $includeEffect = true;
                     }
                 }
@@ -327,7 +328,7 @@ class Wordclock extends IPSModuleStrict
                 $this->SetValue('ScrollingDuration', $val);
 
                 // Wenn gerade Scrollingtext aktiv ist, Timer entsprechend anpassen
-                $currentEffectName = $this->EffectIndexToName($this->GetValue('Effect'));
+                $currentEffectName = $this->EffectIndexToName((int)$this->GetValue('Effect'));
                 if ($currentEffectName === 'Scrollingtext') {
                     if ($val === 0) {
                         // unendlich: Timer aus
@@ -366,7 +367,7 @@ class Wordclock extends IPSModuleStrict
             $hexColor = ltrim($hexColor, '#');
 
             // Hex in Integer umwandeln
-            $colorInt = hexdec($hexColor);
+            $colorInt = (int)hexdec($hexColor);
 
             // Ursprungsfarbe nur speichern, wenn noch nicht gespeichert
             $prevColor = $this->ReadAttributeInteger('PreviousColor');
@@ -490,6 +491,10 @@ class Wordclock extends IPSModuleStrict
         }
 
         $jsonPayload = json_encode($payload, JSON_UNESCAPED_SLASHES);
+        if ($jsonPayload === false) {
+            $this->SendDebug('SendState', 'json_encode fehlgeschlagen', 0);
+            return;
+        }
 
         // TX: Topic + Payload
         $this->SendDebug('SendState', 'Topic=' . $commandTopic . ', Payload=' . $jsonPayload, 0);
@@ -503,7 +508,13 @@ class Wordclock extends IPSModuleStrict
             'Payload'          => $jsonPayload
         ];
 
-        $this->SendDataToParent(json_encode($mqttPacket));
+        $packet = json_encode($mqttPacket);
+        if ($packet === false) {
+            $this->SendDebug('SendState', 'json_encode mqttPacket fehlgeschlagen', 0);
+            return;
+        }
+
+        $this->SendDataToParent($packet);
     }
 
     private function NormalizeScrollingText(string $text): string
@@ -544,7 +555,7 @@ class Wordclock extends IPSModuleStrict
 
     private function EnsureProfiles(): void
     {
-        $ensureProfile = function (string $name, int $type, callable $init = null) {
+        $ensureProfile = function (string $name, int $type, ?callable $init = null): void {
             if (IPS_VariableProfileExists($name)) {
                 $p = IPS_GetVariableProfile($name);
                 if ($p['ProfileType'] != $type) {
@@ -560,25 +571,25 @@ class Wordclock extends IPSModuleStrict
         };
 
         // Hue: 0–360° (eigenes Profil)
-        $ensureProfile('Wordclock.Hue', VARIABLETYPE_INTEGER, function (string $name) {
+        $ensureProfile('Wordclock.Hue', VARIABLETYPE_INTEGER, function (string $name): void {
             IPS_SetVariableProfileValues($name, 0, 360, 1);
             IPS_SetVariableProfileText($name, '', '°');
             IPS_SetVariableProfileIcon($name, 'Bulb');
         });
 
         // Effektprofil
-        $ensureProfile('Wordclock.Effect', VARIABLETYPE_INTEGER, function (string $name) {
+        $ensureProfile('Wordclock.Effect', VARIABLETYPE_INTEGER, function (string $name): void {
             IPS_SetVariableProfileValues($name, 0, 7, 1);
             IPS_SetVariableProfileIcon($name, 'Script');
 
             $effects = $this->GetEffectList();
             foreach ($effects as $idx => $effName) {
-                IPS_SetVariableProfileAssociation($name, $idx, $effName, '', -1);
+                IPS_SetVariableProfileAssociation($name, (int)$idx, (string)$effName, '', -1);
             }
         });
 
         // Lauftext-Dauer: 0–600s, Schritt 5
-        $ensureProfile('Wordclock.ScrollDuration', VARIABLETYPE_INTEGER, function (string $name) {
+        $ensureProfile('Wordclock.ScrollDuration', VARIABLETYPE_INTEGER, function (string $name): void {
             IPS_SetVariableProfileValues($name, 0, 600, 5);
             IPS_SetVariableProfileText($name, '', ' s');
             IPS_SetVariableProfileIcon($name, 'Clock');
