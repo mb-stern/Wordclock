@@ -22,7 +22,7 @@ class Wordclock extends IPSModuleStrict
         $this->RegisterTimer('ScrollingReset', 0, 'WCLOCK_ScrollingReset($_IPS[\'TARGET\']);');
     }
     
-    public function GetCompatibleParents(): string
+    public function GetCompatibleParents()
     {
         // MQTT-Server
         '{C6D2AEB3-6E1F-4B2E-8E69-3A1A00246850}' 
