@@ -28,11 +28,13 @@ class Wordclock extends IPSModuleStrict
 
     public function GetCompatibleParents(): string
     {
-        $json = json_encode([
-            'type'      => 'require',
+         return json_encode([
+            'type' => 'connect',
             'moduleIDs' => [
-                // MQTT-Server (Splitter)
+                // MQTT Server
                 '{C6D2AEB3-6E1F-4B2E-8E69-3A1A00246850}'
+                // MQTT Client
+                //'{F7A0DD2E-7684-95C0-64C2-D2A9DC47577B}'
             ]
         ]);
     }
