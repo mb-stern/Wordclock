@@ -24,10 +24,15 @@ class Wordclock extends IPSModuleStrict
     
     public function GetCompatibleParents(): string
     {
-        [
-            // MQTT-Server
-            '{C6D2AEB3-6E1F-4B2E-8E69-3A1A00246850}'
-        ]
+        $json = json_encode([
+            'type'      => 'require',
+            'moduleIDs' => [
+                // MQTT-Server (Splitter)
+                '{C6D2AEB3-6E1F-4B2E-8E69-3A1A00246850}'
+            ]
+        ]);
+
+        return ($json !== false) ? $json : '[]';
     }
 
     public function ApplyChanges(): void
@@ -156,16 +161,26 @@ class Wordclock extends IPSModuleStrict
             return '';
         }
 
-        $json = (string)$data['Payload'];
-        if (trim($json) === '') {
+        $payloadHex = (string)$data['Payload'];
+        if (trim($payloadHex) === '') {
             return '';
         }
 
-        // RX: eine Zeile mit Topic + Payload
-        $this->SendDebug('ReceiveData', 'Topic=' . $data['Topic'] . ', Payload=' . $json, 0);
+        // RX Debug: wir loggen weiterhin HEX, aber decodieren für die Verarbeitung
+        $this->SendDebug('ReceiveData', 'Topic=' . $data['Topic'] . ', Payload=' . $payloadHex, 0);
 
-        $state = json_decode($json, true);
+        // HEX -> BIN -> String
+        $payloadBin = (ctype_xdigit($payloadHex) && (strlen($payloadHex) % 2 === 0)) ? hex2bin($payloadHex) : false;
+        if ($payloadBin === false) {
+            // Fallback: falls doch mal Klartext kommt
+            $payloadJson = $payloadHex;
+        } else {
+            $payloadJson = $payloadBin;
+        }
+
+        $state = json_decode($payloadJson, true);
         if (!is_array($state)) {
+            $this->SendDebug('ReceiveData', 'JSON decode failed after HEX2BIN. Decoded=' . (string)$payloadJson, 0);
             return '';
         }
 
@@ -513,7 +528,7 @@ class Wordclock extends IPSModuleStrict
             'QualityOfService' => 0,
             'Retain'           => false,
             'Topic'            => $commandTopic,
-            'Payload'          => $jsonPayload
+            'Payload'          => bin2hex($jsonPayload)
         ];
 
         $packet = json_encode($mqttPacket);
