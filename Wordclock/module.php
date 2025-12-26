@@ -21,8 +21,7 @@ class Wordclock extends IPSModuleStrict
         // Timer für Lauftext-Rückkehr (ms)
         $this->RegisterTimer('ScrollingReset', 0, 'WCLOCK_ScrollingReset($_IPS[\'TARGET\']);');
     }
-
-    /*
+    
     public function GetCompatibleParents(): string
     {
         return json_encode([
@@ -33,7 +32,6 @@ class Wordclock extends IPSModuleStrict
             ]
         ]);
     }
-        */
 
     public function ApplyChanges(): void
     {
