@@ -25,7 +25,7 @@ class Wordclock extends IPSModuleStrict
     public function GetCompatibleParents()
     {
         // MQTT-Server
-        '{C6D2AEB3-6E1F-4B2E-8E69-3A1A00246850}' 
+        {C6D2AEB3-6E1F-4B2E-8E69-3A1A00246850}
     }
 
     public function ApplyChanges(): void
