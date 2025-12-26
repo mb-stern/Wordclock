@@ -132,10 +132,7 @@ class Wordclock extends IPSModuleStrict
             return '';
         }
 
-        // RX-DataID des MQTT-Splitters prüfen
-        if (!isset($data['DataID']) || $data['DataID'] !== '{7F7632D9-FA40-4F38-8DEA-C83CD4325A32}') {
-            return '';
-        }
+        $this->SendDebug('ReceiveData', 'DataID=' . ($data['DataID'] ?? 'n/a'), 0);
 
         // Basis-Topic holen und /status anhängen
         $baseTopic = rtrim($this->ReadPropertyString('Topic'), '/');
