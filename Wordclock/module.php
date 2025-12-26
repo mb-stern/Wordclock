@@ -43,7 +43,7 @@ class Wordclock extends IPSModuleStrict
         $baseTopic = rtrim($this->ReadPropertyString('Topic'), '/');
         if ($baseTopic !== '') {
             $statusTopic = preg_quote($baseTopic . '/status', '/');
-            $this->SetReceiveDataFilter('.*"Topic":"' . $statusTopic . '".*');
+            $this->SetReceiveDataFilter('.*' . $statusTopic . '.*');
         } else {
             $this->SetReceiveDataFilter('.*');
         }
@@ -549,13 +549,14 @@ class Wordclock extends IPSModuleStrict
             'Payload'          => bin2hex($jsonPayload)
         ];
 
-        $packet = json_encode($mqttPacket);
-        if ($packet === false) {
+        $packetJson = json_encode($mqttPacket, JSON_UNESCAPED_SLASHES);
+        if ($packetJson === false) {
             $this->SendDebug('SendState', 'json_encode mqttPacket fehlgeschlagen', 0);
             return;
         }
 
-        $this->SendDataToParent($packet);
+        // Datenfluss ist binär -> wir schicken BIN (nicht HEX-String)
+        $this->SendDataToParent($packetJson);                       
     }
 
     private function NormalizeScrollingText(string $text): string
