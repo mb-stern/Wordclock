@@ -1,15 +1,13 @@
 <?php
 
-declare(strict_types=1);
-
-class Wordclock extends IPSModule
+class Wordclock extends IPSModuleStrict
 {
     public function Create()
     {
         parent::Create();
 
         // MQTT-Parent verbinden
-        $this->ConnectParent('{C6D2AEB3-6E1F-4B2E-8E69-3A1A00246850}');
+        //$this->ConnectParent('{C6D2AEB3-6E1F-4B2E-8E69-3A1A00246850}');
 
         // Eigenschaften
         $this->RegisterPropertyString('Topic', 'ESPWordclock');
