@@ -39,6 +39,15 @@ class Wordclock extends IPSModuleStrict
     {
         parent::ApplyChanges();
 
+        // NUR Status-Topic empfangen (wichtig!)
+        $baseTopic = rtrim($this->ReadPropertyString('Topic'), '/');
+        if ($baseTopic !== '') {
+            $statusTopic = preg_quote($baseTopic . '/status', '/');
+            $this->SetReceiveDataFilter('.*"Topic":"' . $statusTopic . '".*');
+        } else {
+            $this->SetReceiveDataFilter('.*');
+        }
+        
         // Profile anlegen
         $this->EnsureProfiles();
 
