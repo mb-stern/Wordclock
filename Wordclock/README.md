@@ -123,6 +123,9 @@ Geloggte Infos:
 
 ## Versionen
 
+### Version 1.3 (27.12.2025)
+- Umbau auf IPSModuleStrict, daher Kompatibilität hochgezogen auf 8.1
+
 ### Version 1.2 (23.11.2025)
 - Lauftext jetzt mit Farbangabe in Hex.
 
