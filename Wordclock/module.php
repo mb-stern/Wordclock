@@ -131,6 +131,8 @@ class Wordclock extends IPSModuleStrict
 
     public function ReceiveData(string $JSONString): string
     {
+        $this->SendDebug('RX RAW', $JSONString, 0);
+        
         $data = json_decode($JSONString, true);
         if (!is_array($data)) {
             return '';
@@ -470,6 +472,12 @@ class Wordclock extends IPSModuleStrict
 
     private function SendStateToWordclock(bool $includeEffect, string $scrollingText = ''): void
     {
+
+        if (!$this->HasActiveParent()) {
+            $this->SendDebug('SendState', 'Kein aktiver Parent (noch nicht verbunden)', 0);
+            return;
+        }
+
         $baseTopic = rtrim($this->ReadPropertyString('Topic'), '/');
         if ($baseTopic === '') {
             return;
