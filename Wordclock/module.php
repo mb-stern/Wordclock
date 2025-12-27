@@ -168,6 +168,7 @@ class Wordclock extends IPSModuleStrict
 
         // RX Debug: wir loggen weiterhin HEX, aber decodieren für die Verarbeitung
         $this->SendDebug('ReceiveData', 'Topic=' . $data['Topic'] . ', Payload=' . $payloadHex, 0);
+        $this->SendDebug('ReceiveData decoded', hex2bin($payloadHex), 0);
 
         // HEX -> BIN -> String
         $payloadBin = (ctype_xdigit($payloadHex) && (strlen($payloadHex) % 2 === 0)) ? hex2bin($payloadHex) : false;
