@@ -51,6 +51,7 @@ class Wordclock extends IPSModuleStrict
                 'PacketType'       => 8,  // SUBSCRIBE
                 'QualityOfService' => 0,
                 'Topic'            => $baseTopic . '/status',
+                'Payload'          => '',
                 'Retain'           => false
             ];
 
