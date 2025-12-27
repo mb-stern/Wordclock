@@ -1,10 +1,14 @@
 <?php
+declare(strict_types=1);
 
 class Wordclock extends IPSModuleStrict
 {
     public function Create(): void
     {
         parent::Create();
+
+        // MQTT-Parent verbinden
+        //$this->ConnectParent('{C6D2AEB3-6E1F-4B2E-8E69-3A1A00246850}');
 
         // Eigenschaften
         $this->RegisterPropertyString('Topic', 'ESPWordclock');
@@ -22,6 +26,7 @@ class Wordclock extends IPSModuleStrict
         $this->RegisterTimer('ScrollingReset', 0, 'WCLOCK_ScrollingReset($_IPS[\'TARGET\']);');
     }
 
+    /*
     public function GetCompatibleParents(): string
     {
         $json = json_encode([
@@ -34,30 +39,11 @@ class Wordclock extends IPSModuleStrict
 
         return ($json !== false) ? $json : '[]';
     }
+        */
 
     public function ApplyChanges(): void
     {
         parent::ApplyChanges();
-
-        $baseTopic = rtrim($this->ReadPropertyString('Topic'), '/');
-        if ($baseTopic !== '') {
-
-            // optional: nur Status-Topic durchlassen
-            $this->SetReceiveDataFilter('.*"Topic":"' . preg_quote($baseTopic . '/status', '/') . '".*');
-
-            // SUBSCRIBE auf <Topic>/status
-            $data = [
-                'DataID'           => '{043EA491-0325-4ADD-8FC2-A30C8EEB4D3F}', // MQTT TX
-                'PacketType'       => 8,  // SUBSCRIBE
-                'QualityOfService' => 0,
-                'Topic'            => $baseTopic . '/status',
-                'Payload'          => '',
-                'Retain'           => false
-            ];
-
-            $this->SendDebug('Subscribe', json_encode($data, JSON_UNESCAPED_SLASHES), 0);
-            $this->SendDataToParent(json_encode($data, JSON_UNESCAPED_SLASHES));
-        }
 
         // Profile anlegen
         $this->EnsureProfiles();
