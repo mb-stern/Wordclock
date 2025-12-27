@@ -26,7 +26,6 @@ class Wordclock extends IPSModuleStrict
         $this->RegisterTimer('ScrollingReset', 0, 'WCLOCK_ScrollingReset($_IPS[\'TARGET\']);');
     }
 
-    /*
     public function GetCompatibleParents(): string
     {
         $json = json_encode([
@@ -39,7 +38,6 @@ class Wordclock extends IPSModuleStrict
 
         return ($json !== false) ? $json : '[]';
     }
-        */
 
     public function ApplyChanges(): void
     {
