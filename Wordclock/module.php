@@ -27,7 +27,7 @@ class Wordclock extends IPSModuleStrict
         $json = json_encode([
             'type'      => 'connect',
             'moduleIDs' => [
-                // MQTT-Server (Splitter)
+                // MQTT-Server
                 '{C6D2AEB3-6E1F-4B2E-8E69-3A1A00246850}'
             ]
         ]);
@@ -41,8 +41,6 @@ class Wordclock extends IPSModuleStrict
 
         // Profile anlegen
         $this->EnsureProfiles();
-
-        // Variablen anlegen
 
         // Farbe (HexColor)
         $this->RegisterVariableInteger(
