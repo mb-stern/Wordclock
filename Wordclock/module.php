@@ -50,7 +50,8 @@ class Wordclock extends IPSModuleStrict
                 'DataID'           => '{043EA491-0325-4ADD-8FC2-A30C8EEB4D3F}', // MQTT TX
                 'PacketType'       => 8,  // SUBSCRIBE
                 'QualityOfService' => 0,
-                'Topic'            => $baseTopic . '/status'
+                'Topic'            => $baseTopic . '/status',
+                'Retain'           => false
             ];
 
             $this->SendDebug('Subscribe', json_encode($data, JSON_UNESCAPED_SLASHES), 0);
