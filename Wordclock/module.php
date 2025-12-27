@@ -1,14 +1,10 @@
 <?php
-declare(strict_types=1);
 
 class Wordclock extends IPSModuleStrict
 {
     public function Create(): void
     {
         parent::Create();
-
-        // MQTT-Parent verbinden
-        //$this->ConnectParent('{C6D2AEB3-6E1F-4B2E-8E69-3A1A00246850}');
 
         // Eigenschaften
         $this->RegisterPropertyString('Topic', 'ESPWordclock');
@@ -29,7 +25,7 @@ class Wordclock extends IPSModuleStrict
     public function GetCompatibleParents(): string
     {
         $json = json_encode([
-            'type'      => 'connect',
+            'type'      => 'require',
             'moduleIDs' => [
                 // MQTT-Server (Splitter)
                 '{C6D2AEB3-6E1F-4B2E-8E69-3A1A00246850}'
@@ -131,8 +127,6 @@ class Wordclock extends IPSModuleStrict
 
     public function ReceiveData(string $JSONString): string
     {
-        $this->SendDebug('RX RAW', $JSONString, 0);
-        
         $data = json_decode($JSONString, true);
         if (!is_array($data)) {
             return '';
@@ -472,12 +466,6 @@ class Wordclock extends IPSModuleStrict
 
     private function SendStateToWordclock(bool $includeEffect, string $scrollingText = ''): void
     {
-
-        if (!$this->HasActiveParent()) {
-            $this->SendDebug('SendState', 'Kein aktiver Parent (noch nicht verbunden)', 0);
-            return;
-        }
-
         $baseTopic = rtrim($this->ReadPropertyString('Topic'), '/');
         if ($baseTopic === '') {
             return;
