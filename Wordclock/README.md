@@ -18,7 +18,7 @@ Es wertet den Status der Uhr aus, stellt komfortable Steuervariablen bereit (Hel
 
 1. Repository als Modul in IP-Symcon einbinden
 2. Instanz **Wordclock** anlegen
-3. Beim Anlegen der Instanz wird ebenfalls eine MQTT-Server Instanz angelegt, wenn noch keine besteht
+3. Beim Anlegen der Instanz wird ebenfalls eine MQTT-Server Instanz angelegt, wenn noch keine besteht. Ansonsten kann ein bestehender Server ausgewählt oder manuell ein zusätzlicher erstellt werden.
 4. MQTT-Server und Server-Socket mit der Wordclock-Instanz verbinden und konfigurieren
 5. Basis-Topic im Konfigurationsformular konfigurieren
 6. Die Wordclock muss danach allenfalls neu gestartet werden
@@ -122,6 +122,10 @@ Geloggte Infos:
 - RGB/HSV Berechnungen
 
 ## Versionen
+
+### Version 2.0 (27.12.2025)
+- Umbau auf IPSModuleStrict, daher Kompatibilität hochgezogen auf 8.1.
+- Version um die Store-Kompatibilität zu erreichen.
 
 ### Version 1.2 (23.11.2025)
 - Lauftext jetzt mit Farbangabe in Hex.
