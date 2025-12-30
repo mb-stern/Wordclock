@@ -1,47 +1,46 @@
 <?php
 
-declare(strict_types=1);
-
-class Wordclock extends IPSModule
+class Wordclock extends IPSModuleStrict
 {
-    // HIER: GUID deines MQTT-Parents eintragen (MQTT Client / MQTT Server / Gateway)
-    private const MQTT_PARENT_GUID = '{MQTT_PARENT_GUID}';
-
-    // DataIDs für das MQTT-Protokoll (Symcon MQTT)
-    // TX: vom Modul → MQTT
-    private const MQTT_TX_GUID = '{043EA491-0325-4ADD-8FC2-A30C8EEB4D3F}';
-    // RX: vom MQTT → Modul
-    private const MQTT_RX_GUID = '{7F7632D9-FA40-4F38-8DEA-C83CD4325A32}';
-
-    public function Create()
+    public function Create(): void
     {
         parent::Create();
 
-        // MQTT-Parent verbinden (Struktur wie bei deinem Goodwe-Modul)
-        $this->ConnectParent(self::MQTT_PARENT_GUID);
-
         // Eigenschaften
-        $this->RegisterPropertyBoolean('Active', true);
-        $this->RegisterPropertyString('StatusTopic', 'Wordclock/status');
-        $this->RegisterPropertyString('CommandTopic', 'Wordclock/cmd');
+        $this->RegisterPropertyString('Topic', 'ESPWordclock');
 
-        // Interner Timestamp für Throttle (statt eigener Variable)
+        // Interner Timestamp für Throttle
         $this->RegisterAttributeInteger('LastParseTS', 0);
 
-        // Profile einmalig anlegen
-        $this->EnsureProfiles();
+        // Ursprünglicher Effekt für Lauftext-Rückkehr
+        $this->RegisterAttributeInteger('PreviousEffect', -1);
+
+        // Ursprüngliche Farbe für Lauftext-Rückkehr
+        $this->RegisterAttributeInteger('PreviousColor', -1);
+
+        // Timer für Lauftext-Rückkehr (ms)
+        $this->RegisterTimer('ScrollingReset', 0, 'WCLOCK_ScrollingReset($_IPS[\'TARGET\']);');
     }
 
-    public function ApplyChanges()
+    public function GetCompatibleParents(): string
+    {
+        $json = json_encode([
+            'type'      => 'connect',
+            'moduleIDs' => [
+                // MQTT-Server
+                '{C6D2AEB3-6E1F-4B2E-8E69-3A1A00246850}'
+            ]
+        ]);
+
+        return ($json !== false) ? $json : '[]';
+    }
+
+    public function ApplyChanges(): void
     {
         parent::ApplyChanges();
 
-        // Wenn deaktiviert, keine Variablen etc.
-        if (!$this->ReadPropertyBoolean('Active')) {
-            return;
-        }
-
-        // --- Variablen: mit RegisterVariable..., nicht Maintain... ---
+        // Profile anlegen
+        $this->EnsureProfiles();
 
         // Farbe (HexColor)
         $this->RegisterVariableInteger(
@@ -52,11 +51,11 @@ class Wordclock extends IPSModule
         );
         $this->EnableAction('Color');
 
-        // Helligkeit 0–255 (Float)
-        $this->RegisterVariableFloat(
+        // Helligkeit 0–100% (Integer mit Standardprofil)
+        $this->RegisterVariableInteger(
             'Brightness',
             'Helligkeit',
-            'Wordclock.Brightness',
+            '~Intensity.100',
             10
         );
         $this->EnableAction('Brightness');
@@ -70,7 +69,7 @@ class Wordclock extends IPSModule
         );
         $this->EnableAction('Effect');
 
-        // Hue 0–360°
+        // Hue 0–360° (eigenes Profil)
         $this->RegisterVariableInteger(
             'Hue',
             'Farbton',
@@ -79,96 +78,127 @@ class Wordclock extends IPSModule
         );
         $this->EnableAction('Hue');
 
-        // Saturation 0–100%
+        // Saturation 0–100% (Standardprofil)
         $this->RegisterVariableInteger(
             'Saturation',
             'Sättigung',
-            'Wordclock.Saturation',
+            '~Intensity.100',
             25
         );
         $this->EnableAction('Saturation');
+
+        // Scrolling-Text
+        $this->RegisterVariableString(
+            'ScrollingText',
+            'Lauftext',
+            '~TextBox',
+            30
+        );
+        $this->EnableAction('ScrollingText');
+
+        // Lauftext-Dauer in Sekunden (0 = unendlich)
+        $this->RegisterVariableInteger(
+            'ScrollingDuration',
+            'Lauftext Dauer',
+            'Wordclock.ScrollDuration',
+            35
+        );
+        $this->EnableAction('ScrollingDuration');
     }
 
-    public function GetConfigurationForm()
+    public function GetConfigurationForm(): string
     {
         $form = [
             'elements' => [
                 [
-                    'type'    => 'CheckBox',
-                    'name'    => 'Active',
-                    'caption' => 'Aktiv'
-                ],
-                [
                     'type'    => 'ValidationTextBox',
-                    'name'    => 'StatusTopic',
-                    'caption' => 'Status-Topic (von Wordclock)',
-                    'width'   => '400px'
-                ],
-                [
-                    'type'    => 'ValidationTextBox',
-                    'name'    => 'CommandTopic',
-                    'caption' => 'Command-Topic (zur Wordclock)',
+                    'name'    => 'Topic',
+                    'caption' => 'Basis-Topic',
                     'width'   => '400px'
                 ]
             ]
         ];
 
-        return json_encode($form);
+        $json = json_encode($form);
+        return ($json !== false) ? $json : '{}';
     }
 
-    /**
-     * ReceiveData – wird vom MQTT-Parent aufgerufen
-     */
-    public function ReceiveData($JSONString)
+    public function ReceiveData(string $JSONString): string
     {
         $data = json_decode($JSONString, true);
         if (!is_array($data)) {
-            return;
+            return '';
         }
 
-        // Wenn du magst, kannst du DataID auch ignorieren – hier prüfe ich sie explizit:
-        if (!isset($data['DataID']) || $data['DataID'] !== self::MQTT_RX_GUID) {
-            return;
+        // RX-DataID des MQTT-Splitters prüfen
+        if (!isset($data['DataID']) || $data['DataID'] !== '{7F7632D9-FA40-4F38-8DEA-C83CD4325A32}') {
+            return '';
         }
 
-        $statusTopic = $this->ReadPropertyString('StatusTopic');
-        if ($statusTopic === '') {
-            return;
+        // Basis-Topic holen und /status anhängen
+        $baseTopic = rtrim($this->ReadPropertyString('Topic'), '/');
+        if ($baseTopic === '') {
+            return '';
         }
+        $statusTopic = $baseTopic . '/status';
 
-        // Nur das gewünschte Status-Topic verarbeiten
+        // Nur Status-Topic der Wordclock verarbeiten
         if (!isset($data['Topic']) || $data['Topic'] !== $statusTopic) {
-            return;
+            return '';
         }
 
-        // Throttle: max. 1x/s (wie dein InternalTS)
+        // Throttle: max. 1x/s
         $now  = time();
         $last = $this->ReadAttributeInteger('LastParseTS');
         if (($now - $last) < 1) {
-            return;
+            return '';
         }
         $this->WriteAttributeInteger('LastParseTS', $now);
 
-        if (!isset($data['Payload']) || trim((string)$data['Payload']) === '') {
-            return;
+        if (!isset($data['Payload'])) {
+            return '';
         }
 
-        $json = (string)$data['Payload'];
-        $state = json_decode($json, true);
+        $payloadHex = (string)$data['Payload'];
+        if (trim($payloadHex) === '') {
+            return '';
+        }
+
+        // RX Debug: wir loggen weiterhin HEX, aber decodieren für die Verarbeitung
+        $this->SendDebug('ReceiveData', 'Topic=' . $data['Topic'] . ', Payload=' . $payloadHex, 0);
+        $this->SendDebug('ReceiveData decoded', hex2bin($payloadHex), 0);
+
+        // HEX -> BIN -> String
+        $payloadBin = (ctype_xdigit($payloadHex) && (strlen($payloadHex) % 2 === 0)) ? hex2bin($payloadHex) : false;
+        if ($payloadBin === false) {
+            // Fallback: falls doch mal Klartext kommt
+            $payloadJson = $payloadHex;
+        } else {
+            $payloadJson = $payloadBin;
+        }
+
+        $state = json_decode($payloadJson, true);
         if (!is_array($state)) {
-            return;
+            $this->SendDebug('ReceiveData', 'JSON decode failed after HEX2BIN. Decoded=' . (string)$payloadJson, 0);
+            return '';
         }
 
-        // ---- Logik aus deinem ursprünglichen Script ----
+        $h    = null;
+        $s    = null;
+        $v255 = null;
 
-        $h = null;
-        $s = null;
-        $v = null;
-
-        // brightness (0–255)
+        // brightness (0–255 von der Uhr) -> 0–100% in Symcon
         if (isset($state['brightness'])) {
-            $v = (float)$state['brightness'];
-            $this->SetValueFloatIfChanged('Brightness', $v);
+            $v255 = (float)$state['brightness'];
+
+            $percent = (int)round(($v255 / 255.0) * 100.0);
+            if ($percent < 0) {
+                $percent = 0;
+            } elseif ($percent > 100) {
+                $percent = 100;
+            }
+
+            $this->SetValueIntegerIfChanged('Brightness', $percent);
         }
 
         // color.h (0–360)
@@ -183,30 +213,34 @@ class Wordclock extends IPSModule
             $this->SetValueIntegerIfChanged('Saturation', $s);
         }
 
-        // Effekt wird bewusst NICHT aus dem JSON übernommen
-
-        // Color (Hex) aus HSV, wenn alles vorhanden
-        if ($h !== null && $s !== null && $v !== null) {
-            $rgb = $this->HSVtoRGB($h, $s, $v);  // h:0–360, s:0–100, v:0–255
+        // RGB-Wert für ~HexColor berechnen, wenn alle drei Werte da sind
+        if ($h !== null && $s !== null && $v255 !== null) {
+            $rgb = $this->HSVtoRGB((float)$h, (float)$s, (float)$v255);  // h:0–360, s:0–100, v:0–255
             $colorInt = ($rgb['r'] << 16) | ($rgb['g'] << 8) | $rgb['b'];
             $this->SetValueIntegerIfChanged('Color', $colorInt);
         }
+
+        // Optionaler Return an Parent (meist leer)
+        return '';
     }
 
-    /**
-     * RequestAction – reagiert auf WebFront/Skript-Änderungen
-     */
-    public function RequestAction($Ident, $Value)
+    public function RequestAction(string $Ident, mixed $Value): void
     {
-        if (!$this->ReadPropertyBoolean('Active')) {
-            return;
-        }
+        // Änderung aus dem Modul (eine Zeile)
+        $this->SendDebug('RequestAction', $Ident . '=' . json_encode($Value), 0);
 
-        $includeEffect = false;
+        $includeEffect   = false;
+        $scrollingTextTx = '';
 
         switch ($Ident) {
-            case 'Brightness':
-                $this->SetValue('Brightness', (float)$Value);
+            case 'Brightness': // 0–100 %
+                $val = (int)$Value;
+                if ($val < 0) {
+                    $val = 0;
+                } elseif ($val > 100) {
+                    $val = 100;
+                }
+                $this->SetValue('Brightness', $val);
                 break;
 
             case 'Hue':
@@ -222,94 +256,328 @@ class Wordclock extends IPSModule
                 $colorInt = (int)$Value;
                 $this->SetValue('Color', $colorInt);
 
-                // RGB -> HSV umrechnen und Hue/Sat aktualisieren
+                // RGB -> HSV umrechnen und Hue/Sat/Brightness aktualisieren
                 $r = ($colorInt >> 16) & 0xFF;
                 $g = ($colorInt >> 8) & 0xFF;
                 $b = $colorInt & 0xFF;
 
                 $hsv = $this->RGBtoHSV($r, $g, $b); // h:0–360, s:0–100, v:0–255
+
                 $this->SetValue('Hue', (int)round($hsv['h']));
                 $this->SetValue('Saturation', (int)round($hsv['s']));
-                // $hsv['v'] ignorieren, da Helligkeit separat geführt wird
+
+                $percent = (int)round(($hsv['v'] / 255.0) * 100.0);
+                if ($percent < 0) {
+                    $percent = 0;
+                } elseif ($percent > 100) {
+                    $percent = 100;
+                }
+                $this->SetValue('Brightness', $percent);
                 break;
 
             case 'Effect':
                 $this->SetValue('Effect', (int)$Value);
                 $includeEffect = true;
+
+                // Manueller Effektwechsel: Auto-Rückkehr deaktivieren
+                $this->SetTimerInterval('ScrollingReset', 0);
+                $this->WriteAttributeInteger('PreviousEffect', -1);
+                break;
+
+            case 'ScrollingText':
+                $newText = (string)$Value;
+
+                // Originaltext mit Umlauten in der Variable speichern
+                $this->SetValue('ScrollingText', $newText);
+
+                // Text für die Uhr normalisieren (Umlaute + führendes Leerzeichen)
+                $normalized      = $this->NormalizeScrollingText($newText);
+                $sendText        = ' ' . $normalized; // 1 führendes Leerzeichen als Vorlauf
+                $scrollingTextTx = $sendText;
+
+                // aktuellen Effekt & PreviousEffect prüfen
+                $currentEffectIdx  = (int)$this->GetValue('Effect');
+                $currentEffectName = $this->EffectIndexToName($currentEffectIdx);
+
+                $prev = $this->ReadAttributeInteger('PreviousEffect');
+
+                // Ursprünglichen Effekt nur dann merken, wenn noch keiner gespeichert ist
+                // und wir nicht schon im Scrollingtext sind
+                if ($prev < 0 && $currentEffectName !== 'Scrollingtext') {
+                    $this->WriteAttributeInteger('PreviousEffect', $currentEffectIdx);
+                    $this->SendDebug('ScrollingText', 'PreviousEffect gesetzt auf ' . $currentEffectIdx, 0);
+                }
+
+                // auf Scrollingtext schalten, falls noch nicht aktiv
+                if ($currentEffectName !== 'Scrollingtext') {
+                    $effects = $this->GetEffectList();
+                    $idx     = array_search('Scrollingtext', $effects, true);
+                    if ($idx !== false) {
+                        $this->SetValue('Effect', (int)$idx);
+                        $includeEffect = true;
+                    }
+                }
+
+                // Laufzeit in Sekunden holen
+                $duration = 0;
+                if (@$this->GetIDForIdent('ScrollingDuration')) {
+                    $duration = (int)$this->GetValue('ScrollingDuration');
+                }
+                if ($duration < 0) {
+                    $duration = 0;
+                }
+
+                $this->SendDebug(
+                    'ScrollingText',
+                    'Duration=' . $duration . 's, StoredPreviousEffect=' . $this->ReadAttributeInteger('PreviousEffect'),
+                    0
+                );
+
+                if ($duration === 0) {
+                    // unendlich: Timer aus
+                    $this->SetTimerInterval('ScrollingReset', 0);
+                } else {
+                    // Timer in ms
+                    $this->SetTimerInterval('ScrollingReset', $duration * 1000);
+                }
+                break;
+
+            case 'ScrollingDuration':
+                $val = (int)$Value;
+                if ($val < 0) {
+                    $val = 0;
+                }
+                $this->SetValue('ScrollingDuration', $val);
+
+                // Wenn gerade Scrollingtext aktiv ist, Timer entsprechend anpassen
+                $currentEffectName = $this->EffectIndexToName((int)$this->GetValue('Effect'));
+                if ($currentEffectName === 'Scrollingtext') {
+                    if ($val === 0) {
+                        // unendlich: Timer aus
+                        $this->SendDebug('ScrollingDuration', 'Timer aus (unendlich)', 0);
+                        $this->SetTimerInterval('ScrollingReset', 0);
+                    } else {
+                        $this->SendDebug('ScrollingDuration', 'Timer auf ' . ($val * 1000) . ' ms gesetzt', 0);
+                        $this->SetTimerInterval('ScrollingReset', $val * 1000);
+                    }
+                }
                 break;
 
             default:
                 throw new Exception('Invalid Ident');
         }
 
-        // Danach Zustand zur Wordclock senden
-        $this->SendStateToWordclock($includeEffect);
+        // Für alle Änderungen normalen State senden, ggf. inkl. Text
+        $this->SendStateToWordclock($includeEffect, $scrollingTextTx);
     }
 
-    /**
-     * Zustand als JSON an das Command-Topic publizieren
-     */
-    private function SendStateToWordclock(bool $includeEffect): void
+    public function ShowScrollingText(string $text, int $duration = 0, string $hexColor = ''): void
     {
-        $commandTopic = $this->ReadPropertyString('CommandTopic');
-        if ($commandTopic === '') {
-            return;
+        if ($duration < 0) {
+            $duration = 0;
         }
 
-        $brightness = $this->GetValue('Brightness');
-        $h          = $this->GetValue('Hue');
-        $s          = $this->GetValue('Saturation');
-        $effectIdx  = $this->GetValue('Effect');
+        // Dauer im Modul setzen
+        if (@$this->GetIDForIdent('ScrollingDuration')) {
+            $this->SetValue('ScrollingDuration', $duration);
+        }
 
+        // Farbe nur ändern, wenn hexColor nicht leer ist
+        if ($hexColor !== '' && @$this->GetIDForIdent('Color')) {
+
+            // Falls mit "#" angegeben wurde, entfernen
+            $hexColor = ltrim($hexColor, '#');
+
+            // Hex in Integer umwandeln
+            $colorInt = (int)hexdec($hexColor);
+
+            // Ursprungsfarbe nur speichern, wenn noch nicht gespeichert
+            $prevColor = $this->ReadAttributeInteger('PreviousColor');
+            if ($prevColor < 0) {
+                $currentColor = (int)$this->GetValue('Color');
+                $this->WriteAttributeInteger('PreviousColor', $currentColor);
+                $this->SendDebug('ShowScrollingText', 'PreviousColor gesetzt auf ' . $currentColor, 0);
+            }
+
+            // Neue Farbe setzen (über bestehende Logik)
+            $this->RequestAction('Color', $colorInt);
+        }
+
+        // Text setzen
+        $this->RequestAction('ScrollingText', $text);
+    }
+
+    public function ScrollingReset(): void
+    {
+        $this->SendDebug('ScrollingReset', 'Timer ausgelöst', 0);
+
+        // Timer stoppen
+        $this->SetTimerInterval('ScrollingReset', 0);
+
+        $prevEffect = $this->ReadAttributeInteger('PreviousEffect');
+        $prevColor  = $this->ReadAttributeInteger('PreviousColor');
+
+        $includeEffect = false;
+
+        // Ursprünglichen Effekt wiederherstellen (falls vorhanden)
+        if ($prevEffect >= 0) {
+            $this->SetValue('Effect', $prevEffect);
+            $this->WriteAttributeInteger('PreviousEffect', -1);
+            $includeEffect = true;
+            $this->SendDebug('ScrollingReset', 'Wechsele zurück zu EffektIdx=' . $prevEffect, 0);
+        } else {
+            $this->SendDebug('ScrollingReset', 'Kein PreviousEffect gesetzt', 0);
+        }
+
+        // Ursprüngliche Farbe wiederherstellen (falls vorhanden)
+        if ($prevColor >= 0 && @$this->GetIDForIdent('Color')) {
+            $this->SendDebug('ScrollingReset', 'Stelle PreviousColor wieder her: ' . $prevColor, 0);
+
+            $colorInt = $prevColor;
+            $this->SetValue('Color', $colorInt);
+
+            // Hue/Saturation/Brightness passend zur ursprünglichen Farbe setzen
+            $r = ($colorInt >> 16) & 0xFF;
+            $g = ($colorInt >> 8) & 0xFF;
+            $b = $colorInt & 0xFF;
+
+            $hsv = $this->RGBtoHSV($r, $g, $b); // h:0–360, s:0–100, v:0–255
+
+            $this->SetValue('Hue', (int)round($hsv['h']));
+            $this->SetValue('Saturation', (int)round($hsv['s']));
+
+            $percent = (int)round(($hsv['v'] / 255.0) * 100.0);
+            if ($percent < 0) {
+                $percent = 0;
+            } elseif ($percent > 100) {
+                $percent = 100;
+            }
+            $this->SetValue('Brightness', $percent);
+
+            $this->WriteAttributeInteger('PreviousColor', -1);
+        } else {
+            $this->SendDebug('ScrollingReset', 'Keine PreviousColor gesetzt', 0);
+        }
+
+        // State mit ggf. neuem Effekt und wiederhergestellter Farbe senden (ohne scrolling_text)
+        $this->SendStateToWordclock($includeEffect, '');
+    }
+
+    private function SendStateToWordclock(bool $includeEffect, string $scrollingText = ''): void
+    {
+        $baseTopic = rtrim($this->ReadPropertyString('Topic'), '/');
+        if ($baseTopic === '') {
+            return;
+        }
+        $commandTopic = $baseTopic . '/cmd';
+
+        // Helligkeit in % (0–100) -> 0–255 für die Uhr
+        $brightnessPercent = (int)$this->GetValue('Brightness');
+        if ($brightnessPercent < 0) {
+            $brightnessPercent = 0;
+        } elseif ($brightnessPercent > 100) {
+            $brightnessPercent = 100;
+        }
+        $brightness255 = (int)round(($brightnessPercent / 100.0) * 255.0);
+
+        $h          = (int)$this->GetValue('Hue');
+        $s          = (int)$this->GetValue('Saturation');
+        $effectIdx  = (int)$this->GetValue('Effect');
         $effectName = $this->EffectIndexToName($effectIdx);
+
+        // TX: Werte der gesendeten Variablen (inkl. Text)
+        $valuesLog = sprintf(
+            'Values: Brightness=%d%% (%d), Hue=%d, Saturation=%d, EffectIdx=%d, EffectName=%s, ScrollingText="%s"',
+            $brightnessPercent,
+            $brightness255,
+            $h,
+            $s,
+            $effectIdx,
+            $effectName ?? 'null',
+            $scrollingText
+        );
+        $this->SendDebug('SendState', $valuesLog, 0);
 
         $payload = [
             'state'      => 'ON',
             'color'      => ['h' => $h, 's' => $s],
-            'brightness' => $brightness
+            'brightness' => $brightness255
         ];
 
         if ($includeEffect && $effectName !== null) {
             $payload['effect'] = $effectName;
         }
 
+        if ($scrollingText !== '') {
+            $payload['scrolling_text'] = $scrollingText;
+        }
+
+        $jsonPayload = json_encode($payload, JSON_UNESCAPED_SLASHES);
+        if ($jsonPayload === false) {
+            $this->SendDebug('SendState', 'json_encode fehlgeschlagen', 0);
+            return;
+        }
+
+        // TX: Topic + Payload
+        $this->SendDebug('SendState', 'Topic=' . $commandTopic . ', Payload=' . $jsonPayload, 0);
+
         $mqttPacket = [
-            'DataID'           => self::MQTT_TX_GUID,
-            'PacketType'       => 3, // PUBLISH
+            'DataID'           => '{043EA491-0325-4ADD-8FC2-A30C8EEB4D3F}', // TX
+            'PacketType'       => 3,
             'QualityOfService' => 0,
             'Retain'           => false,
             'Topic'            => $commandTopic,
-            'Payload'          => json_encode($payload, JSON_UNESCAPED_SLASHES)
+            'Payload'           => bin2hex($jsonPayload)
         ];
 
-        $this->SendDataToParent(json_encode($mqttPacket));
+        $packet = json_encode($mqttPacket);
+        if ($packet === false) {
+            $this->SendDebug('SendState', 'json_encode mqttPacket fehlgeschlagen', 0);
+            return;
+        }
+
+        $this->SendDataToParent($packet);
     }
 
-    // -----------------------------------------------------------------
-    // Helper: SetValue only if changed
-    // -----------------------------------------------------------------
+    private function NormalizeScrollingText(string $text): string
+    {
+        // deutsche Umlaute ersetzen
+        $map = [
+            'ä' => 'ae',
+            'Ä' => 'Ae',
+            'ö' => 'oe',
+            'Ö' => 'Oe',
+            'ü' => 'ue',
+            'Ü' => 'Ue',
+            'ß' => 'ss'
+        ];
+        $text = strtr($text, $map);
+
+        // nicht druckbare / nicht ASCII Zeichen entfernen
+        $text = preg_replace('/[^\x20-\x7E]/', '', $text);
+
+        return $text;
+    }
 
     private function SetValueIntegerIfChanged(string $Ident, int $new): void
     {
-        if ($this->GetValue($Ident) !== $new) {
+        $old = $this->GetValue($Ident);
+        if ($old !== $new) {
             $this->SetValue($Ident, $new);
         }
     }
 
     private function SetValueFloatIfChanged(string $Ident, float $new): void
     {
-        if (abs((float)$this->GetValue($Ident) - $new) > 0.0001) {
+        $old = (float)$this->GetValue($Ident);
+        if (abs($old - $new) > 0.0001) {
             $this->SetValue($Ident, $new);
         }
     }
 
-    // -----------------------------------------------------------------
-    // Profile & Effekte
-    // -----------------------------------------------------------------
-
     private function EnsureProfiles(): void
     {
-        $ensureProfile = function (string $name, int $type, callable $init = null) {
+        $ensureProfile = function (string $name, int $type, ?callable $init = null): void {
             if (IPS_VariableProfileExists($name)) {
                 $p = IPS_GetVariableProfile($name);
                 if ($p['ProfileType'] != $type) {
@@ -324,42 +592,29 @@ class Wordclock extends IPSModule
             }
         };
 
-        // Brightness: 0–255 (Float)
-        $ensureProfile('Wordclock.Brightness', VARIABLETYPE_FLOAT, function (string $name) {
-            IPS_SetVariableProfileValues($name, 0, 255, 1);
-            IPS_SetVariableProfileText($name, '', '');
-            IPS_SetVariableProfileIcon($name, 'Intensity');
-        });
-
-        // Hue: 0–360° (Integer)
-        $ensureProfile('Wordclock.Hue', VARIABLETYPE_INTEGER, function (string $name) {
+        // Hue: 0–360° (eigenes Profil)
+        $ensureProfile('Wordclock.Hue', VARIABLETYPE_INTEGER, function (string $name): void {
             IPS_SetVariableProfileValues($name, 0, 360, 1);
             IPS_SetVariableProfileText($name, '', '°');
             IPS_SetVariableProfileIcon($name, 'Bulb');
         });
 
-        // Saturation: 0–100% (Integer)
-        $ensureProfile('Wordclock.Saturation', VARIABLETYPE_INTEGER, function (string $name) {
-            IPS_SetVariableProfileValues($name, 0, 100, 1);
-            IPS_SetVariableProfileText($name, '', '%');
-            IPS_SetVariableProfileIcon($name, 'Intensity');
-        });
-
         // Effektprofil
-        $ensureProfile('Wordclock.Effect', VARIABLETYPE_INTEGER, function (string $name) {
+        $ensureProfile('Wordclock.Effect', VARIABLETYPE_INTEGER, function (string $name): void {
             IPS_SetVariableProfileValues($name, 0, 7, 1);
             IPS_SetVariableProfileIcon($name, 'Script');
 
-            // alte Assoziationen leeren
-            $prof = IPS_GetVariableProfile($name);
-            foreach ($prof['Associations'] as $assoc) {
-                IPS_SetVariableProfileAssociation($name, $assoc['Value'], '', '', -1);
-            }
-
             $effects = $this->GetEffectList();
             foreach ($effects as $idx => $effName) {
-                IPS_SetVariableProfileAssociation($name, $idx, $effName, '', -1);
+                IPS_SetVariableProfileAssociation($name, (int)$idx, (string)$effName, '', -1);
             }
+        });
+
+        // Lauftext-Dauer: 0–600s, Schritt 5
+        $ensureProfile('Wordclock.ScrollDuration', VARIABLETYPE_INTEGER, function (string $name): void {
+            IPS_SetVariableProfileValues($name, 0, 600, 5);
+            IPS_SetVariableProfileText($name, '', ' s');
+            IPS_SetVariableProfileIcon($name, 'Clock');
         });
     }
 
@@ -383,13 +638,6 @@ class Wordclock extends IPSModule
         return $effects[$idx] ?? null;
     }
 
-    // -----------------------------------------------------------------
-    // RGB <-> HSV wie in deinem Script
-    // -----------------------------------------------------------------
-
-    /**
-     * RGB (0–255) → HSV (h:0–360, s:0–100, v:0–255)
-     */
     private function RGBtoHSV(int $r, int $g, int $b): array
     {
         $r_f = $r / 255.0;
@@ -420,9 +668,6 @@ class Wordclock extends IPSModule
         return ['h' => $h, 's' => $s, 'v' => $v];
     }
 
-    /**
-     * HSV (h:0–360, s:0–100, v:0–255) → RGB (0–255)
-     */
     private function HSVtoRGB(float $h, float $s, float $v): array
     {
         $s /= 100.0;
