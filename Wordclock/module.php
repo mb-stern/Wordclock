@@ -604,10 +604,6 @@ class Wordclock extends IPSModuleStrict
         IPS_SetVariableProfileDigits('Wordclock.Effect', 0);
         IPS_SetVariableProfileText('Wordclock.Effect', '', '');
         IPS_SetVariableProfileIcon('Wordclock.Effect', 'Script');
-
-        // Associations IMMER neu aufbauen (sonst bleiben alte/duplikate drin)
-        IPS_SetVariableProfileAssociations('Wordclock.Effect', []);
-
         IPS_SetVariableProfileAssociation('Wordclock.Effect', 0, 'Wordclock',      '', -1);
         IPS_SetVariableProfileAssociation('Wordclock.Effect', 1, 'Seconds',        '', -1);
         IPS_SetVariableProfileAssociation('Wordclock.Effect', 2, 'Digitalclock',   '', -1);
