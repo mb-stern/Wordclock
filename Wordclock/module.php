@@ -601,7 +601,7 @@ class Wordclock extends IPSModuleStrict
 
         // Effektprofil
         $ensureProfile('Wordclock.Effect', VARIABLETYPE_INTEGER, function (string $name): void {
-            IPS_SetVariableProfileValues($name, 0, 7, 1);
+            IPS_SetVariableProfileValues($name, 0, 7, 0);
             IPS_SetVariableProfileIcon($name, 'Script');
 
             $effects = $this->GetEffectList();
