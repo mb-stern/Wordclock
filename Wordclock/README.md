@@ -126,7 +126,7 @@ Geloggte Infos:
 ### Version 2.0 (03.01.2026)
 - Umbau auf IPSModuleStrict, daher Kompatibilität hochgezogen auf 8.1.
 - Version um die Store-Kompatibilität zu erreichen.
-- Verbesserte erstellung der Variablenprofile um eine korrekte Darstellung einer Auswahlliste zu erhalten.
+- Verbesserte Erstellung der Variablenprofile um eine korrekte Darstellung einer Auswahlliste zu erhalten.
 
 ### Version 1.2 (23.11.2025)
 - Lauftext jetzt mit Farbangabe in Hex.
