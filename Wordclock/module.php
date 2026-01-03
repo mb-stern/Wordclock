@@ -600,7 +600,7 @@ class Wordclock extends IPSModuleStrict
         }
 
         // Werte IMMER setzen
-        IPS_SetVariableProfileValues('Wordclock.Effect', 0, 7, 1);
+        IPS_SetVariableProfileValues('Wordclock.Effect', 0, 7, 0);
         IPS_SetVariableProfileDigits('Wordclock.Effect', 0);
         IPS_SetVariableProfileText('Wordclock.Effect', '', '');
         IPS_SetVariableProfileIcon('Wordclock.Effect', 'Script');
