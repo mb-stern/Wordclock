@@ -577,59 +577,59 @@ class Wordclock extends IPSModuleStrict
 
     private function EnsureProfiles(): void
     {
-        $ensureProfile = function (string $name, int $type, ?callable $init = null): void {
-            if (IPS_VariableProfileExists($name)) {
-                $p = IPS_GetVariableProfile($name);
-                if ($p['ProfileType'] != $type) {
-                    IPS_DeleteVariableProfile($name);
-                } else {
-                    return;
-                }
-            }
-            IPS_CreateVariableProfile($name, $type);
-            if ($init) {
-                $init($name);
-            }
-        };
+        // =========================
+        // Wordclock.Hue
+        // =========================
+        if (!IPS_VariableProfileExists('Wordclock.Hue')) {
+            IPS_CreateVariableProfile('Wordclock.Hue', VARIABLETYPE_INTEGER);
+            $this->SendDebug('Variablenprofil', 'Variablenprofil Wordclock.Hue erstellt', 0);
+        }
 
-        // Hue: 0–360° (eigenes Profil)
-        $ensureProfile('Wordclock.Hue', VARIABLETYPE_INTEGER, function (string $name): void {
-            IPS_SetVariableProfileValues($name, 0, 360, 1);
-            IPS_SetVariableProfileText($name, '', '°');
-            IPS_SetVariableProfileIcon($name, 'Bulb');
-        });
+        // Werte IMMER setzen (damit Änderungen übernommen werden)
+        IPS_SetVariableProfileValues('Wordclock.Hue', 0, 360, 1);
+        IPS_SetVariableProfileDigits('Wordclock.Hue', 0);
+        IPS_SetVariableProfileText('Wordclock.Hue', '', '°');
+        IPS_SetVariableProfileIcon('Wordclock.Hue', 'Bulb');
 
-        // Effektprofil
-        $ensureProfile('Wordclock.Effect', VARIABLETYPE_INTEGER, function (string $name): void {
-            IPS_SetVariableProfileValues($name, 0, 7, 0);
-            IPS_SetVariableProfileIcon($name, 'Script');
+        // =========================
+        // Wordclock.Effect
+        // =========================
+        if (!IPS_VariableProfileExists('Wordclock.Effect')) {
+            IPS_CreateVariableProfile('Wordclock.Effect', VARIABLETYPE_INTEGER);
+            $this->SendDebug('Variablenprofil', 'Variablenprofil Wordclock.Effect erstellt', 0);
+        }
 
-            $effects = $this->GetEffectList();
-            foreach ($effects as $idx => $effName) {
-                IPS_SetVariableProfileAssociation($name, (int)$idx, (string)$effName, '', -1);
-            }
-        });
+        // Werte IMMER setzen
+        IPS_SetVariableProfileValues('Wordclock.Effect', 0, 7, 1);
+        IPS_SetVariableProfileDigits('Wordclock.Effect', 0);
+        IPS_SetVariableProfileText('Wordclock.Effect', '', '');
+        IPS_SetVariableProfileIcon('Wordclock.Effect', 'Script');
 
-        // Lauftext-Dauer: 0–600s, Schritt 5
-        $ensureProfile('Wordclock.ScrollDuration', VARIABLETYPE_INTEGER, function (string $name): void {
-            IPS_SetVariableProfileValues($name, 0, 600, 5);
-            IPS_SetVariableProfileText($name, '', ' s');
-            IPS_SetVariableProfileIcon($name, 'Clock');
-        });
-    }
+        // Associations IMMER neu aufbauen (sonst bleiben alte/duplikate drin)
+        IPS_SetVariableProfileAssociations('Wordclock.Effect', []);
 
-    private function GetEffectList(): array
-    {
-        return [
-            0 => 'Wordclock',
-            1 => 'Seconds',
-            2 => 'Digitalclock',
-            3 => 'Scrollingtext',
-            4 => 'Rainbowcycle',
-            5 => 'Rainbow',
-            6 => 'Color',
-            7 => 'Symbol'
-        ];
+        IPS_SetVariableProfileAssociation('Wordclock.Effect', 0, 'Wordclock',      '', -1);
+        IPS_SetVariableProfileAssociation('Wordclock.Effect', 1, 'Seconds',        '', -1);
+        IPS_SetVariableProfileAssociation('Wordclock.Effect', 2, 'Digitalclock',   '', -1);
+        IPS_SetVariableProfileAssociation('Wordclock.Effect', 3, 'Scrollingtext',  '', -1);
+        IPS_SetVariableProfileAssociation('Wordclock.Effect', 4, 'Rainbowcycle',   '', -1);
+        IPS_SetVariableProfileAssociation('Wordclock.Effect', 5, 'Rainbow',        '', -1);
+        IPS_SetVariableProfileAssociation('Wordclock.Effect', 6, 'Color',          '', -1);
+        IPS_SetVariableProfileAssociation('Wordclock.Effect', 7, 'Symbol',         '', -1);
+
+        // =========================
+        // Wordclock.ScrollDuration
+        // =========================
+        if (!IPS_VariableProfileExists('Wordclock.ScrollDuration')) {
+            IPS_CreateVariableProfile('Wordclock.ScrollDuration', VARIABLETYPE_INTEGER);
+            $this->SendDebug('Variablenprofil', 'Variablenprofil Wordclock.ScrollDuration erstellt', 0);
+        }
+
+        // Werte IMMER setzen
+        IPS_SetVariableProfileValues('Wordclock.ScrollDuration', 0, 600, 5);
+        IPS_SetVariableProfileDigits('Wordclock.ScrollDuration', 0);
+        IPS_SetVariableProfileText('Wordclock.ScrollDuration', '', ' s');
+        IPS_SetVariableProfileIcon('Wordclock.ScrollDuration', 'Clock');
     }
 
     private function EffectIndexToName(int $idx): ?string
