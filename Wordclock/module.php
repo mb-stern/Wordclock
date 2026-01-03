@@ -628,6 +628,20 @@ class Wordclock extends IPSModuleStrict
         IPS_SetVariableProfileIcon('Wordclock.ScrollDuration', 'Clock');
     }
 
+    private function GetEffectList(): array
+    {
+        return [
+            0 => 'Wordclock',
+            1 => 'Seconds',
+            2 => 'Digitalclock',
+            3 => 'Scrollingtext',
+            4 => 'Rainbowcycle',
+            5 => 'Rainbow',
+            6 => 'Color',
+            7 => 'Symbol'
+        ];
+    }
+
     private function EffectIndexToName(int $idx): ?string
     {
         $effects = $this->GetEffectList();
