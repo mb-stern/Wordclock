@@ -137,7 +137,7 @@ class Wordclock extends IPSModuleStrict
                         ]
                     ]
                 ]
-            ]
+            ];
 
         $json = json_encode($form);
         return ($json !== false) ? $json : '{}';
