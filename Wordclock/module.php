@@ -116,7 +116,7 @@ class Wordclock extends IPSModuleStrict
                     'caption' => 'Basis-Topic',
                     'width'   => '400px'
                 ]
-            ]
+            ],
             'actions' => [
                     [
                         "type" => "Label",
